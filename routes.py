@@ -3,7 +3,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 import os
 import matplotlib.pyplot as plt
 
-from extraFunctions import download_dem #, mask_raster_with_leaflet
+from extraFunctions import download_dem, crop_dem, visualization
 
 
 def callRoutes(app):
@@ -42,6 +42,11 @@ def callRoutes(app):
 
         # Takes the tif file and crops it into the user expected shape
         # mask_raster_with_leaflet("dem_tile.tif", coords_list, "masked.tif", show_plot=True)
+
+        CroppedFile = crop_dem(coords)
+
+
+        visualization(CroppedFile)
 
 
         # Dummy response

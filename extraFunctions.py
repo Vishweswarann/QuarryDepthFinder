@@ -1,4 +1,8 @@
 import requests
+import rasterio
+from rasterio.warp import transform_bounds
+from rasterio.windows import from_bounds
+import matplotlib.pyplot as plt
 
 
 def download_dem(south, west, north, east, output_file='dem.tif'):
@@ -35,3 +39,68 @@ def download_dem(south, west, north, east, output_file='dem.tif'):
         print(f"Failed to download DEM. Status code: {response.status_code}")
         print("Response message:", response.text)
 
+
+
+def crop_dem(leaflet_polygon_coords):
+    # Example: coords from Leaflet polygon (EPSG:4326)
+    # This is what you'd get from L.polygon(...).getLatLngs()[0]
+
+    # Step 1: Extract all lats and lngs
+    lats = [pt["lat"] for pt in leaflet_polygon_coords]
+    lons = [pt["lng"] for pt in leaflet_polygon_coords]
+
+    # Step 2: Create bbox in EPSG:4326
+    min_lon, max_lon = min(lons), max(lons)
+    min_lat, max_lat = min(lats), max(lats)
+
+    input_tif = "dem_tile.tif"
+    output_tif = "cropped.tif"
+
+    with rasterio.open(input_tif) as src:
+        # Step 3: Reproject bbox to raster CRS
+        bbox_in_raster_crs = transform_bounds(
+            'EPSG:4326',  # Leaflet's coords CRS
+            src.crs,      # Raster's CRS
+            min_lon, min_lat, max_lon, max_lat
+        )
+
+        # Step 4: Convert bbox to raster window
+        window = from_bounds(*bbox_in_raster_crs, transform=src.transform)
+
+        # Step 5: Read cropped data
+        data = src.read(window=window)
+
+        # Step 6: Update metadata
+        out_meta = src.meta.copy()
+        out_meta.update({
+            "height": window.height,
+            "width": window.width,
+            "transform": src.window_transform(window)
+        })
+
+    # Step 7: Save cropped raster
+    with rasterio.open(output_tif, "w", **out_meta) as dest:
+        dest.write(data)
+
+    print(f"Cropped raster saved: {output_tif}")
+    return output_tif
+
+
+
+def visualization(filePath = "cropped.tif"):
+
+    # Open your cropped .tif file
+    with rasterio.open("cropped.tif") as src:
+        data = src.read(1)  # read the first band
+        profile = src.profile
+
+    # Plot with matplotlib
+    plt.figure(figsize=(8, 6))
+    plt.imshow(data, cmap="terrain")  # 'terrain' colormap for elevation
+    plt.colorbar(label="Elevation (m)")  # colorbar shows depth/elevation
+    plt.title("Cropped DEM Elevation")
+    plt.xlabel("Pixel X")
+    plt.ylabel("Pixel Y")
+    plt.show()
+
+    
