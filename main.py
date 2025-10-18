@@ -19,8 +19,3 @@ def createApp():
 
     return app
 
-
-def returnDb():
-    return db
-
-
