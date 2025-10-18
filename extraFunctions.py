@@ -3,9 +3,12 @@ import rasterio
 from rasterio.warp import transform_bounds
 from rasterio.windows import from_bounds
 import matplotlib.pyplot as plt
+import os
+
+os.environ['PROJ_LIB'] = r'C:\Users\vishw\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\rasterio\proj_data'
 
 
-def download_dem(south, west, north, east, output_file='dem.tif'):
+def download_dem(south, west, north, east,typeofdem="COP", output_file='dem.tif'):
 
     # Define bounding box and parameters
     # south, north = 20, 21
@@ -16,17 +19,23 @@ def download_dem(south, west, north, east, output_file='dem.tif'):
     dem_key = "f6e4359261eadf297651af4329f48c18"
 
     # Construct the API URL
+    url = ""
 
-    url = (
-            f"https://portal.opentopography.org/API/globaldem?"
-    f"demtype={dem_type}&south={south}&north={north}&west={west}&east={east}"
-    f"&outputFormat={output_format}&API_Key={dem_key}"
-    )
+    if typeofdem == "USGS":
+        url = (f"https://portal.opentopography.org/API/usgsdem?datasetName=USGS10m&south={south}&north={north}&west={west}&east={east}&outputFormat=GTiff&API_Key={dem_key}")
+
+    else:
+        url = (
+                f"https://portal.opentopography.org/API/globaldem?"
+        f"demtype={dem_type}&south={south}&north={north}&west={west}&east={east}"
+        f"&outputFormat={output_format}&API_Key={dem_key}"
+        )
+        
     # NOTE: api key for opentopography f6e4359261eadf297651af4329f48c18
     print(f"Requesting DEM data from: {url}")
 
     # Send GET request
-    response = requests.get(url)
+    response = requests.get(url, verify=False)
 
 
     # Check if request was successful
@@ -101,6 +110,7 @@ def visualization(filePath = "cropped.tif"):
     plt.title("Cropped DEM Elevation")
     plt.xlabel("Pixel X")
     plt.ylabel("Pixel Y")
-    plt.show()
+    plt.savefig("Static/Figure/myplot.png")
+    # plt.show()
 
     

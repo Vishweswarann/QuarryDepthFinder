@@ -11,6 +11,9 @@
 
 	<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 	<script src="https://unpkg.com/leaflet-draw/dist/leaflet.draw.js"></script>
+	<script src="https://cdn.maptiler.com/maptiler-geocoding-control/v1.4.1/leaflet.umd.js"></script>
+	<link href="https://cdn.maptiler.com/maptiler-geocoding-control/v1.4.1/style.css" rel="stylesheet">
+
 
 </head>
 
@@ -18,7 +21,9 @@
 
 	<div id="map" style="height: 500px;"></div>
 
-</body>
+	<div id="img_container"></div>
 
+
+</body>
 	<script src="{{url_for('static', filename='js/script.js')}}"></script>
 </html>
