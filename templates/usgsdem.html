@@ -86,12 +86,13 @@
 
 
 		const dataToSend = {
+			dem: "USGS",
 			coords: coords,
 			bbox: bbox
 		};
 
 		// Send bbox JSON to Flask bPI
-		fetch('/api/get_usgsdem', {
+		fetch('/api/get_dem', {
 			method: 'POST',
 			headers: {'Content-Type': 'application/json'},
 			body: JSON.stringify(dataToSend)

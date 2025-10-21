@@ -22,11 +22,23 @@ def callRoutes(app):
     def test():
         return render_template("test2.html")
 
+
+    @routes.route('/save', methods=["POST"])
+    def save():
+        print("greatknsnfsjnf knfsnfisfnienciencineicvn vwvienwvinciecwecv wenvcwnrcvw cwncvweincvw")
+        data = request.get_json()
+        coords = data.get("coords")
+        print(coords)
+        return jsonify({"Message": "Success"})
+
+
     @routes.route('/api/get_dem', methods=['POST'])
     def get_dem():
         data = request.get_json()
 
+        dem = data.get("dem")
         coords = data.get("coords")
+        print(coords)
         bbox = data.get("bbox")
 
         coords_list = [[p["lat"], p["lng"]] for p in coords]
@@ -42,7 +54,7 @@ def callRoutes(app):
         # TODO: Use bounding box to call DEM API and process DEM
 
         # Downloads the dem from opentopography and stores it in a fiile
-        download_dem(south=minLat, west=minLng, north=maxLat, east=maxLng)
+        download_dem(south=minLat, west=minLng, north=maxLat, east=maxLng, typeofdem=dem)
 
         # Takes the tif file and crops it into the user expected shape
         # mask_raster_with_leaflet("dem_tile.tif", coords_list, "masked.tif", show_plot=True)
@@ -81,7 +93,7 @@ def callRoutes(app):
         # TODO: Use bounding box to call DEM API and process DEM
 
         # Downloads the dem from opentopography and stores it in a fiile
-        download_dem(south=minLat, west=minLng, north=maxLat, east=maxLng, typeofdem="USGS")
+        download_dem(south=minLat, west=minLng, north=maxLat, east=maxLng, typeofdem=dem)
 
         # Takes the tif file and crops it into the user expected shape
         # mask_raster_with_leaflet("dem_tile.tif", coords_list, "masked.tif", show_plot=True)

@@ -1,5 +1,4 @@
 from main import createApp
-from main import returnDb
 
 
 app = createApp()

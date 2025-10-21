@@ -1,13 +1,13 @@
-// Initialize map centered on India
+// NOTE:Initialize map centered on India
 var map = L.map('map').setView([20.5937, 78.9629], 5);
 
-// ESRI World Imagery (satellite)
+//  NOTE: ESRI World Imagery (satellite)
 var imagery = L.tileLayer(
 	'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
 	{ attribution: 'Tiles © Esri &mdash; Source: Esri, Maxar, Earthstar Geographics' }
 );
 
-// ESRI Boundaries and Place Names (transparent labels)
+//  NOTE: ESRI Boundaries and Place Names (transparent labels)
 var labels = L.tileLayer(
 	'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
 	{ attribution: 'Labels © Esri', pane: 'overlayPane' }
@@ -15,6 +15,7 @@ var labels = L.tileLayer(
 
 
 
+// NOTE: This is the API key for calling maptile
 const key = "Kg9QSPQ2NdnhcfI7adg2";
 
 
@@ -24,23 +25,25 @@ labels.addTo(map);
 
 
 
-// Feature group to store drawn layers
+//  NOTE: Feature group to store drawn layers
 var drawnItems = new L.FeatureGroup();
 map.addLayer(drawnItems);
 
-// Add draw control for polygons
+//  NOTE: Add draw control for polygons
 var drawControl = new L.Control.Draw({
 	edit: { featureGroup: drawnItems },
 	draw: { polygon: true, polyline: false, rectangle: false, circle: false, marker: false }
 });
 map.addControl(drawControl);
 
+
+// NOTE: This provides the ability to search
 L.control.maptilerGeocoding({
 	apiKey: key
 }).addTo(map);
 
 
-// Utility: get bounding box from polygon latlngs
+// NOTE: It returns the minimum and maximum lat and lng
 function getBoundingBox(coords) {
 	const lats = coords.map(p => p.lat);
 	const lngs = coords.map(p => p.lng);
@@ -53,7 +56,7 @@ function getBoundingBox(coords) {
 	};
 }
 
-// On polygon draw created
+// NOTE: This function is called everytime a shape is drawn
 map.on(L.Draw.Event.CREATED, function(e) {
 	var layer = e.layer;
 	drawnItems.addLayer(layer);
@@ -66,6 +69,7 @@ map.on(L.Draw.Event.CREATED, function(e) {
 
 
 	const dataToSend = {
+		dem: "COP",
 		coords: coords,
 		bbox: bbox
 	};
@@ -78,9 +82,11 @@ map.on(L.Draw.Event.CREATED, function(e) {
 	})
 		.then(response => response.json())
 		.then(async data => {
+			// NOTE: It displays the image of the heatmap.
 			const imageUrl = 'static/Figure/myplot.png';
 			const img_container = document.getElementById("img_container");
 			const plot_img = document.createElement("img");
+			// NOTE: This prevents the web browser from the fetching the previous image from cache. Instead it makes it reload and re-fetch the image from the backend.
 			await fetch(imageUrl, { cache: 'reload' })
 				.then(response => {
 					if (!response.ok) throw new Error('Image fetch failed');
@@ -94,5 +100,33 @@ map.on(L.Draw.Event.CREATED, function(e) {
 		.catch(err => console.error('Error:', err));
 
 
+	// NOTE: This is for the popup that is shown when we click on the map
+	layer.on('click', function(event) {
+
+
+
+		window.saveTheBoundary = function() {
+			fetch("/save", {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ "coords": coords })
+			}).then(response => response.json())
+				.then(data => console.log(data))
+				.catch(err => console.log(err))
+		}
+
+		const coords = layer.getLatLngs()[0].map(pt => [pt.lat.toFixed(4), pt.lng.toFixed(4)]);
+		const popup = L.popup()
+			.setLatLng(event.latlng)
+			.setContent(`<b>Polygon clicked!</b><br>Coordinates:<br>${JSON.stringify(coords)}<br><a href="#" onclick='saveTheBoundary()'>Save</a>`)
+			.openOn(map);
+
+	});
 });
+
+
+
+
+
+
 
