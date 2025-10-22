@@ -13,16 +13,21 @@
 	<script src="https://unpkg.com/leaflet-draw/dist/leaflet.draw.js"></script>
 	<script src="https://cdn.maptiler.com/maptiler-geocoding-control/v1.4.1/leaflet.umd.js"></script>
 	<link href="https://cdn.maptiler.com/maptiler-geocoding-control/v1.4.1/style.css" rel="stylesheet">
-
-
 </head>
 
 <body>
 
+		{% if coords and sitename %}
+		{% for c in range(coords|length) %}
+		<a href="#" onclick="displayBoundary({{coords[c]}})">{{sitename[c]}}</a>
+		{% endfor %}
+		{% endif %}
+		
+
+
 	<div id="map" style="height: 500px;"></div>
 
 	<div id="img_container"></div>
-
 
 </body>
 	<script src="{{url_for('static', filename='js/script.js')}}"></script>

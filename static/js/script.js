@@ -106,10 +106,11 @@ map.on(L.Draw.Event.CREATED, function(e) {
 
 
 		window.saveTheBoundary = function() {
+			var sitename = document.getElementById("sitename").value;
 			fetch("/save", {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ "coords": coords })
+				body: JSON.stringify({ "coords": coords, "sitename": sitename })
 			}).then(response => response.json())
 				.then(data => console.log(data))
 				.catch(err => console.log(err))
@@ -118,13 +119,30 @@ map.on(L.Draw.Event.CREATED, function(e) {
 		const coords = layer.getLatLngs()[0].map(pt => [pt.lat.toFixed(4), pt.lng.toFixed(4)]);
 		const popup = L.popup()
 			.setLatLng(event.latlng)
-			.setContent(`<b>Polygon clicked!</b><br>Coordinates:<br>${JSON.stringify(coords)}<br><a href="#" onclick='saveTheBoundary()'>Save</a>`)
+			.setContent(`<b>Polygon clicked!</b><br>Coordinates:<br>${JSON.stringify(coords)}<br><input type='text' name = 'sitename' id = 'sitename'><br><a href="#" onclick='saveTheBoundary()'>Save</a>`)
 			.openOn(map);
 
 	});
 });
 
 
+function displayBoundary(coords) {
+
+
+	const polygonCoords = [
+		[51.509, -0.08],
+		[51.503, -0.06],
+		[51.51, -0.047]
+	];
+
+	map.flyTo(coords[0], 13);
+
+	const polygon = L.polygon(coords, {
+		color: 'blue',
+		fillColor: '#3388ff',
+		fillOpacity: 0.5
+	}).addTo(map);
+}
 
 
 
