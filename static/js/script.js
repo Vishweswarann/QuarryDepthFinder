@@ -56,25 +56,8 @@ function getBoundingBox(coords) {
 	};
 }
 
-// NOTE: This function is called everytime a shape is drawn
-map.on(L.Draw.Event.CREATED, function(e) {
-	var layer = e.layer;
-	drawnItems.addLayer(layer);
 
-	var coords = layer.getLatLngs()[0];  // Outer ring coords of polygon
-
-	var bbox = getBoundingBox(coords);
-
-	console.log('Bounding Box:', bbox);
-
-
-	const dataToSend = {
-		dem: "COP",
-		coords: coords,
-		bbox: bbox
-	};
-
-	// Send bbox JSON to Flask bPI
+function getHeatMap(dataToSend) {
 	fetch('/api/get_dem', {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
@@ -99,27 +82,52 @@ map.on(L.Draw.Event.CREATED, function(e) {
 
 		.catch(err => console.error('Error:', err));
 
+}
+
+
+function saveTheBoundary(coords) {
+
+	console.log(coords);
+	var sitename = document.getElementById("sitename").value;
+	fetch("/save", {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ "coords": coords, "sitename": sitename })
+	}).then(response => response.json())
+		.then(data => console.log(data))
+		.catch(err => console.log(err))
+}
+
+// NOTE: This function is called everytime a shape is drawn
+map.on(L.Draw.Event.CREATED, function(e) {
+	var layer = e.layer;
+	drawnItems.addLayer(layer);
+
+	var coords = layer.getLatLngs()[0];  // Outer ring coords of polygon
+
+	var bbox = getBoundingBox(coords);
+
+	console.log('Bounding Box:', bbox);
+
+
+	const dataToSend = {
+		dem: "COP",
+		coords: coords,
+		bbox: bbox
+	};
+
+	// Send bbox JSON to Flask bPI
+	getHeatMap(dataToSend);
 
 	// NOTE: This is for the popup that is shown when we click on the map
 	layer.on('click', function(event) {
 
 
 
-		window.saveTheBoundary = function() {
-			var sitename = document.getElementById("sitename").value;
-			fetch("/save", {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ "coords": coords, "sitename": sitename })
-			}).then(response => response.json())
-				.then(data => console.log(data))
-				.catch(err => console.log(err))
-		}
-
 		const coords = layer.getLatLngs()[0].map(pt => [pt.lat.toFixed(4), pt.lng.toFixed(4)]);
 		const popup = L.popup()
 			.setLatLng(event.latlng)
-			.setContent(`<b>Polygon clicked!</b><br>Coordinates:<br>${JSON.stringify(coords)}<br><input type='text' name = 'sitename' id = 'sitename'><br><a href="#" onclick='saveTheBoundary()'>Save</a>`)
+			.setContent(`<b>Polygon clicked!</b><br>Coordinates:<br>${JSON.stringify(coords)}<br><input type='text' name = 'sitename' id = 'sitename'><br><a href="#" onclick='saveTheBoundary(${JSON.stringify(coords)})'>Save</a>`)
 			.openOn(map);
 
 	});
@@ -128,13 +136,6 @@ map.on(L.Draw.Event.CREATED, function(e) {
 
 function displayBoundary(coords) {
 
-
-	const polygonCoords = [
-		[51.509, -0.08],
-		[51.503, -0.06],
-		[51.51, -0.047]
-	];
-
 	map.flyTo(coords[0], 13);
 
 	const polygon = L.polygon(coords, {
@@ -142,6 +143,20 @@ function displayBoundary(coords) {
 		fillColor: '#3388ff',
 		fillOpacity: 0.5
 	}).addTo(map);
+
+
+	var bbox = getBoundingBox(coords);
+
+
+	const dataToSend = {
+		dem: "COP",
+		coords: coords,
+		bbox: bbox
+	};
+
+	getHeatMap(dataToSend);
+
+
 }
 
 

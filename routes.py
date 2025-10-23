@@ -28,6 +28,10 @@ def callRoutes(app, mongo):
     def usgsdem():
         return render_template("usgsdem.html")
 
+    @routes.route("/OneMeterDem")
+    def OneMeterDem():
+        return render_template("1mdem.html")
+
     @routes.route("/test")
     def test():
         return render_template("test2.html")
@@ -38,6 +42,7 @@ def callRoutes(app, mongo):
         data = request.get_json()
 
         coords = data.get("coords")
+        print(coords)
         sitename = data.get("sitename")
 
         dataToInsert = {"userId" : 1,
@@ -73,42 +78,6 @@ def callRoutes(app, mongo):
 
         # Downloads the dem from opentopography and stores it in a fiile
         download_dem(south=minLat, west=minLng, north=maxLat, east=maxLng, typeofdem=dem)
-
-        # Takes the tif file and crops it into the user expected shape
-        # mask_raster_with_leaflet("dem_tile.tif", coords_list, "masked.tif", show_plot=True)
-
-        CroppedFile = crop_dem(coords)
-
-        visualization(CroppedFile)
-
-        # Dummy response
-        return jsonify({"depth": 42.0, "min_elevation": 100, "max_elevation": 142})
-
-    @routes.route("/api/get_usgsdem", methods=["POST"])
-    def get_usgsdem():
-        data = request.get_json()
-
-        coords = data.get("coords")
-        bbox = data.get("bbox")
-
-        coords_list = [[p["lat"], p["lng"]] for p in coords]
-
-        minLat = float(bbox.get("minLat"))
-        maxLat = float(bbox.get("maxLat"))
-        minLng = float(bbox.get("minLng"))
-        maxLng = float(bbox.get("maxLng"))
-
-        print(
-            f"Received bounding box: South={minLat}, West={
-              minLng}, North={maxLat}, East={maxLng}"
-        )
-
-        # TODO: Use bounding box to call DEM API and process DEM
-
-        # Downloads the dem from opentopography and stores it in a fiile
-        download_dem(
-            south=minLat, west=minLng, north=maxLat, east=maxLng, typeofdem=dem
-        )
 
         # Takes the tif file and crops it into the user expected shape
         # mask_raster_with_leaflet("dem_tile.tif", coords_list, "masked.tif", show_plot=True)

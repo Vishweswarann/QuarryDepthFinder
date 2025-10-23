@@ -1,9 +1,10 @@
-import requests
+import os
+
+import matplotlib.pyplot as plt
 import rasterio
+import requests
 from rasterio.warp import transform_bounds
 from rasterio.windows import from_bounds
-import matplotlib.pyplot as plt
-import os
 
 os.environ['PROJ_LIB'] = r'C:\Users\vishw\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\rasterio\proj_data'
 
@@ -23,6 +24,37 @@ def download_dem(south, west, north, east,typeofdem="COP", output_file='dem.tif'
 
     if typeofdem == "USGS":
         url = (f"https://portal.opentopography.org/API/usgsdem?datasetName=USGS10m&south={south}&north={north}&west={west}&east={east}&outputFormat=GTiff&API_Key={dem_key}")
+
+    elif typeofdem == "OneMeterDem":
+        
+        # Define API endpoint and parameters
+        url = "https://tnmaccess.nationalmap.gov/api/v1/products"
+        params = {
+            "datasets": "Digital Elevation Model (DEM) 1 meter",
+            "bbox": "-105.5,40.0,-105.0,40.5",  # Example: Colorado area
+            "prodFormats": "GeoTIFF"
+        }
+
+        # Make API request
+        response = requests.get(url, params=params)
+        data = response.json()
+
+        # Print number of results
+        print(f"Found {data['total']} products")
+
+        # Download the first GeoTIFF file
+        if data['items']:
+            download_url = data['items'][0]['downloadURL']
+            filename = data['items'][0]['title'] + ".tif"
+            
+            print(f"Downloading {filename}...")
+            file_response = requests.get(download_url)
+            
+            with open(filename, 'wb') as f:
+                f.write(file_response.content)
+            
+            print(f"Downloaded: {filename}")
+
 
     else:
         url = (
