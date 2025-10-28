@@ -78,9 +78,11 @@ function getHeatMap(dataToSend) {
 
 			plot_img.src = imageUrl;
 			img_container.appendChild(plot_img);
-		})
 
-		.catch(err => console.error('Error:', err));
+
+			details = document.getElementById("")
+			console.log(data);
+		}).catch(err => console.error('Error:', err));
 
 }
 

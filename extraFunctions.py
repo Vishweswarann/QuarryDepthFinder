@@ -1,10 +1,17 @@
 import os
+import sys
 
+import certifi
 import matplotlib.pyplot as plt
 import rasterio
 import requests
 from rasterio.warp import transform_bounds
 from rasterio.windows import from_bounds
+
+# Force SSL certificate path
+os.environ['SSL_CERT_FILE'] = certifi.where()
+os.environ['REQUESTS_CA_BUNDLE'] = certifi.where()
+os.environ['CURL_CA_BUNDLE'] = certifi.where()
 
 os.environ['PROJ_LIB'] = r'C:\Users\vishw\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\rasterio\proj_data'
 
@@ -31,7 +38,7 @@ def download_dem(south, west, north, east,typeofdem="COP", output_file='dem.tif'
         url = "https://tnmaccess.nationalmap.gov/api/v1/products"
         params = {
             "datasets": "Digital Elevation Model (DEM) 1 meter",
-            "bbox": "-105.5,40.0,-105.0,40.5",  # Example: Colorado area
+            "bbox": f"{west}, {south}, {east}, {north}",  # Example: Colorado area
             "prodFormats": "GeoTIFF"
         }
 
@@ -39,21 +46,34 @@ def download_dem(south, west, north, east,typeofdem="COP", output_file='dem.tif'
         response = requests.get(url, params=params)
         data = response.json()
 
+
         # Print number of results
         print(f"Found {data['total']} products")
 
         # Download the first GeoTIFF file
         if data['items']:
             download_url = data['items'][0]['downloadURL']
-            filename = data['items'][0]['title'] + ".tif"
-            
+            filename = "dem_tile.tif"
+
             print(f"Downloading {filename}...")
-            file_response = requests.get(download_url)
-            
+            file_response = requests.get(download_url, stream=True)
+            file_size = int(file_response.headers.get('Content-Length', 0))
+            chunk_size = 8192
+            downloaded = 0
+
             with open(filename, 'wb') as f:
-                f.write(file_response.content)
-            
+                for chunk in file_response.iter_content(chunk_size=chunk_size):
+                    if chunk:
+                        f.write(chunk)
+                        downloaded += len(chunk)
+                        done = int(50 * downloaded / file_size) if file_size else 0
+                        sys.stdout.write(f"\r[{'#' * done}{'.' * (50 - done)}] {downloaded/(1024 * 1024):.2f}/{file_size/(1024 * 1024):.2f} MB")
+                        sys.stdout.flush()
+            print("\nDownload complete!")
+
             print(f"Downloaded: {filename}")
+
+        return
 
 
     else:
@@ -67,7 +87,7 @@ def download_dem(south, west, north, east,typeofdem="COP", output_file='dem.tif'
     print(f"Requesting DEM data from: {url}")
 
     # Send GET request
-    response = requests.get(url, verify=False)
+    response = requests.get(url, verify=True)
 
 
     # Check if request was successful
@@ -130,10 +150,17 @@ def crop_dem(leaflet_polygon_coords):
 
 def visualization(filePath = "cropped.tif"):
 
+    min_elevation = 0
+    max_elevation = 0
+    depth = 0
     # Open your cropped .tif file
     with rasterio.open("cropped.tif") as src:
-        data = src.read(1)  # read the first band
+        data = src.read(1, masked=True)  # read the first band
         profile = src.profile
+        min_elevation = data.min()
+        max_elevation = data.max()
+        depth = max_elevation - min_elevation
+        
 
     # Plot with matplotlib
     plt.figure(figsize=(8, 6))
@@ -144,5 +171,8 @@ def visualization(filePath = "cropped.tif"):
     plt.ylabel("Pixel Y")
     plt.savefig("Static/Figure/myplot.png")
     # plt.show()
+    
+
+    return float(min_elevation), float(max_elevation), float(depth)
 
     

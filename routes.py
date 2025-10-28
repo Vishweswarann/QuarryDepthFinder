@@ -84,9 +84,9 @@ def callRoutes(app, mongo):
 
         CroppedFile = crop_dem(coords)
 
-        visualization(CroppedFile)
+        min_elevation, max_elevation, depth = visualization(CroppedFile)
 
         # Dummy response
-        return jsonify({"depth": 42.0, "min_elevation": 100, "max_elevation": 142})
+        return jsonify({"depth": depth, "min_elevation": min_elevation, "max_elevation": max_elevation})
 
     return routes
