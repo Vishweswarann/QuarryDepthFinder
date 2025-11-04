@@ -1,12 +1,17 @@
 import os
-
+import pyproj
 import matplotlib.pyplot as plt
 import rasterio
 import requests
 from rasterio.warp import transform_bounds
 from rasterio.windows import from_bounds
 
-os.environ['PROJ_LIB'] = r'C:\Users\vishw\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\rasterio\proj_data'
+
+# os.environ['PROJ_LIB'] = r'C:\Users\Yuvaraj\AppData\Local\Programs\Python\Python313\Lib\site-packages\pyproj\proj_dir\share\proj'
+# os.environ['PROJ_LIB'] = r'C:\Users\vishw\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\rasterio\proj_data'
+
+
+os.environ['PROJ_LIB'] = pyproj.datadir.get_data_dir()
 
 
 def download_dem(south, west, north, east,typeofdem="COP", output_file='dem.tif'):
@@ -31,13 +36,15 @@ def download_dem(south, west, north, east,typeofdem="COP", output_file='dem.tif'
         url = "https://tnmaccess.nationalmap.gov/api/v1/products"
         params = {
             "datasets": "Digital Elevation Model (DEM) 1 meter",
-            "bbox": "-105.5,40.0,-105.0,40.5",  # Example: Colorado area
+            "bbox": f"{south},{west},{north},{east}",  # Example: Colorado area
             "prodFormats": "GeoTIFF"
         }
 
+        print(params)   
         # Make API request
         response = requests.get(url, params=params)
         data = response.json()
+        print(data)
 
         # Print number of results
         print(f"Found {data['total']} products")
@@ -48,7 +55,7 @@ def download_dem(south, west, north, east,typeofdem="COP", output_file='dem.tif'
             filename = data['items'][0]['title'] + ".tif"
             
             print(f"Downloading {filename}...")
-            file_response = requests.get(download_url)
+            file_response = requests.get(download_url, verify=True)
             
             with open(filename, 'wb') as f:
                 f.write(file_response.content)
@@ -67,7 +74,7 @@ def download_dem(south, west, north, east,typeofdem="COP", output_file='dem.tif'
     print(f"Requesting DEM data from: {url}")
 
     # Send GET request
-    response = requests.get(url, verify=False)
+    response = requests.get(url, verify=True)
 
 
     # Check if request was successful
