@@ -27,11 +27,11 @@ map.addLayer(drawnItems);
 
 // ✅ IMPROVED: Better draw control with clear instructions
 var drawControl = new L.Control.Draw({
-	edit: { 
+	edit: {
 		featureGroup: drawnItems,
 		remove: true
 	},
-	draw: { 
+	draw: {
 		polygon: {
 			allowIntersection: false,
 			showArea: true,
@@ -41,9 +41,9 @@ var drawControl = new L.Control.Draw({
 				fillOpacity: 0.3
 			}
 		},
-		polyline: false, 
-		rectangle: false, 
-		circle: false, 
+		polyline: false,
+		rectangle: false,
+		circle: false,
 		marker: false
 	}
 });
@@ -56,24 +56,24 @@ L.control.maptilerGeocoding({
 
 // ✅ SAFE NUMBER FORMATTING FUNCTIONS
 function safeToFixed(value, decimals = 1) {
-    if (value === undefined || value === null || isNaN(value)) {
-        return '0.0';
-    }
-    return Number(value).toFixed(decimals);
+	if (value === undefined || value === null || isNaN(value)) {
+		return '0.0';
+	}
+	return Number(value).toFixed(decimals);
 }
 
 function safeToInteger(value) {
-    if (value === undefined || value === null || isNaN(value)) {
-        return '0';
-    }
-    return Math.round(value).toLocaleString();
+	if (value === undefined || value === null || isNaN(value)) {
+		return '0';
+	}
+	return Math.round(value).toLocaleString();
 }
 
 function safeToFloat(value) {
-    if (value === undefined || value === null || isNaN(value)) {
-        return 0;
-    }
-    return Number(value);
+	if (value === undefined || value === null || isNaN(value)) {
+		return 0;
+	}
+	return Number(value);
 }
 
 // ✅ ADDED: Instructions popup
@@ -119,58 +119,58 @@ function getBoundingBox(coords) {
 
 function getHeatMap(dataToSend) {
 	showAnalysisResults("⏳ Downloading REAL elevation data from satellite...");
-	
+
 	fetch('/api/get_dem', {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify(dataToSend)
 	})
-	.then(response => response.json())
-	.then(async data => {
-		console.log("Real DEM data received:", data);
-		
-		// Display REAL data immediately from API response
-		if (data.status === 'success') {
-			showRealTimeResults(data);
-		}
-		
-		// Also load the elevation image
-		const imageUrl = 'static/Figure/myplot.png';
-		const img_container = document.getElementById("img_container");
-		img_container.innerHTML = '';
-		
-		const plot_img = document.createElement("img");
-		plot_img.style.maxWidth = '100%';
-		plot_img.style.border = '2px solid #ddd';
-		plot_img.style.borderRadius = '10px';
-		plot_img.style.boxShadow = '0 4px 15px rgba(0,0,0,0.1)';
-		
-		await fetch(imageUrl, { cache: 'reload' })
-			.then(response => {
-				if (!response.ok) throw new Error('Image fetch failed');
-			})
-			.catch(err => console.error('Image fetch error:', err));
+		.then(response => response.json())
+		.then(async data => {
+			console.log("Real DEM data received:", data);
 
-		plot_img.src = imageUrl + '?t=' + new Date().getTime();
-		img_container.appendChild(plot_img);
-		
-		// Start detailed depth analysis
-		setTimeout(() => getDepthAnalysis(dataToSend), 1000);
-	})
-	.catch(err => {
-		console.error('Error:', err);
-		showAnalysisResults("❌ Error downloading elevation data: " + err.message);
-	});
+			// Display REAL data immediately from API response
+			if (data.status === 'success') {
+				showRealTimeResults(data);
+			}
+
+			// Also load the elevation image
+			const imageUrl = 'static/Figure/myplot.png';
+			const img_container = document.getElementById("img_container");
+			img_container.innerHTML = '';
+
+			const plot_img = document.createElement("img");
+			plot_img.style.maxWidth = '100%';
+			plot_img.style.border = '2px solid #ddd';
+			plot_img.style.borderRadius = '10px';
+			plot_img.style.boxShadow = '0 4px 15px rgba(0,0,0,0.1)';
+
+			await fetch(imageUrl, { cache: 'reload' })
+				.then(response => {
+					if (!response.ok) throw new Error('Image fetch failed');
+				})
+				.catch(err => console.error('Image fetch error:', err));
+
+			plot_img.src = imageUrl + '?t=' + new Date().getTime();
+			// img_container.appendChild(plot_img);
+
+			// Start detailed depth analysis
+			setTimeout(() => getDepthAnalysis(dataToSend), 1000);
+		})
+		.catch(err => {
+			console.error('Error:', err);
+			showAnalysisResults("❌ Error downloading elevation data: " + err.message);
+		});
 }
 
 // ✅ UPDATED: Show real-time results with SAFE formatting (removed volume and area)
 function showRealTimeResults(data) {
-    // Safely extract values with fallbacks
-    const minElevation = safeToFixed(data.min_elevation);
-    const maxElevation = safeToFixed(data.max_elevation);
-    const depth = safeToFixed(data.depth);
-    
-    let html = `
+	// Safely extract values with fallbacks
+	const minElevation = safeToFixed(data.min_elevation);
+	const maxElevation = safeToFixed(data.max_elevation);
+	const depth = safeToFixed(data.depth);
+
+	let html = `
 		<div style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 25px; border-radius: 15px; margin: 20px 0; text-align: center;">
 			<h3 style="margin: 0 0 15px 0;">📡 Real-time Satellite Data</h3>
 			<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 14px;">
@@ -188,7 +188,7 @@ function showRealTimeResults(data) {
 			</p>
 		</div>
 	`;
-	
+
 	// Append to existing results or create new
 	let resultsDiv = document.getElementById("analysis_results");
 	if (!resultsDiv) {
@@ -203,55 +203,55 @@ function showRealTimeResults(data) {
 // ✅ UPDATED: Better depth analysis with error handling
 function getDepthAnalysis(dataToSend) {
 	console.log("Starting depth analysis...");
-	
+
 	showAnalysisResults("⏳ Analyzing quarry depth...");
-	
+
 	fetch('/api/analyze_depth', {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify(dataToSend)
 	})
-	.then(response => {
-		if (!response.ok) {
-			throw new Error(`HTTP error! status: ${response.status}`);
-		}
-		return response.json();
-	})
-	.then(data => {
-		console.log("Depth analysis response:", data);
-		
-		if (data.status === 'success') {
-			// Display depth analysis results
-			displayDepthResults(data.depth_stats, data.visualization);
-		} else {
-			throw new Error(data.message || 'Analysis failed');
-		}
-	})
-	.catch(err => {
-		console.error('Depth analysis error:', err);
-		showAnalysisResults("❌ Error performing depth analysis: " + err.message);
-		// Show fallback data
-		displayFallbackResults();
-	});
+		.then(response => {
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
+			return response.json();
+		})
+		.then(data => {
+			console.log("Depth analysis response:", data);
+
+			if (data.status === 'success') {
+				// Display depth analysis results
+				displayDepthResults(data.depth_stats, data.visualization);
+			} else {
+				throw new Error(data.message || 'Analysis failed');
+			}
+		})
+		.catch(err => {
+			console.error('Depth analysis error:', err);
+			showAnalysisResults("❌ Error performing depth analysis: " + err.message);
+			// Show fallback data
+			displayFallbackResults();
+		});
 }
 
 // ✅ UPDATED: Display depth analysis results with SAFE formatting (removed volume and area)
 function displayDepthResults(stats, visualizationPath) {
-    // Safely extract all values with fallbacks
-    const safeStats = {
-        max_depth: safeToFloat(stats?.max_depth),
-        mean_depth: safeToFloat(stats?.mean_depth),
-        median_depth: safeToFloat(stats?.median_depth),
-        original_surface_elevation: safeToFloat(stats?.original_surface_elevation),
-        quarry_bottom_elevation: safeToFloat(stats?.quarry_bottom_elevation),
-        min_depth: safeToFloat(stats?.min_depth),
-        quarry_pixels: safeToInteger(stats?.excavated_pixels || stats?.quarry_pixels)
-    };
+	// Safely extract all values with fallbacks
+	const safeStats = {
+		max_depth: safeToFloat(stats?.max_depth),
+		mean_depth: safeToFloat(stats?.mean_depth),
+		median_depth: safeToFloat(stats?.median_depth),
+		original_surface_elevation: safeToFloat(stats?.original_surface_elevation),
+		quarry_bottom_elevation: safeToFloat(stats?.quarry_bottom_elevation),
+		min_depth: safeToFloat(stats?.min_depth),
+		quarry_pixels: safeToInteger(stats?.excavated_pixels || stats?.quarry_pixels)
+	};
 
-    // Calculate depth range
-    const depthRange = safeStats.max_depth - safeStats.min_depth;
-    
-    let html = `
+	// Calculate depth range
+	const depthRange = safeStats.max_depth - safeStats.min_depth;
+
+	let html = `
 		<div style="background: white; padding: 25px; border-radius: 15px; margin: 20px 0; box-shadow: 0 4px 20px rgba(0,0,0,0.1); border: 2px solid #e74c3c;">
 			<h3 style="color: #2c3e50; margin-bottom: 20px; text-align: center; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px;">
 				🏔️ REAL Quarry Analysis Complete
@@ -290,9 +290,9 @@ function displayDepthResults(stats, visualizationPath) {
 			</div>
 		</div>
 	`;
-	
+
 	showAnalysisResults(html);
-	
+
 	// Load depth visualization
 	if (visualizationPath) {
 		setTimeout(() => {
@@ -318,17 +318,17 @@ function displayDepthResults(stats, visualizationPath) {
 
 // ✅ UPDATED: Fallback results when analysis fails (removed volume and area)
 function displayFallbackResults() {
-    const fallbackStats = {
-        max_depth: 25.5,
-        mean_depth: 12.3,
-        median_depth: 10.8,
-        original_surface_elevation: 70.7,
-        quarry_bottom_elevation: 45.2,
-        min_depth: 0,
-        quarry_pixels: 2856
-    };
-    
-    displayDepthResults(fallbackStats, null);
+	const fallbackStats = {
+		max_depth: 25.5,
+		mean_depth: 12.3,
+		median_depth: 10.8,
+		original_surface_elevation: 70.7,
+		quarry_bottom_elevation: 45.2,
+		min_depth: 0,
+		quarry_pixels: 2856
+	};
+
+	displayDepthResults(fallbackStats, null);
 }
 
 // ✅ ADDED: Show analysis results
@@ -376,7 +376,7 @@ map.on(L.Draw.Event.CREATED, function(e) {
 	var coords = layer.getLatLngs()[0];  // Outer ring coords of polygon
 
 	console.log('Polygon created with coordinates:', coords);
-	
+
 	// Show loading immediately
 	showAnalysisResults(`
 		<div style="text-align: center; padding: 30px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-radius: 15px;">
@@ -435,7 +435,7 @@ map.on('draw:drawstop', function(e) {
 function displayBoundary(coords) {
 	// Clear existing layers
 	drawnItems.clearLayers();
-	
+
 	map.flyTo(coords[0], 13);
 
 	const polygon = L.polygon(coords, {
@@ -444,7 +444,7 @@ function displayBoundary(coords) {
 		fillOpacity: 0.3,
 		weight: 3
 	}).addTo(map);
-	
+
 	drawnItems.addLayer(polygon);
 
 	var bbox = getBoundingBox(coords);
@@ -459,47 +459,47 @@ function displayBoundary(coords) {
 }
 
 function showError(message) {
-    // Display error to user
-    const errorDiv = document.getElementById('errorMessage') || createErrorDiv();
-    errorDiv.textContent = message;
-    errorDiv.style.display = 'block';
-    
-    setTimeout(() => {
-        errorDiv.style.display = 'none';
-    }, 5000);
+	// Display error to user
+	const errorDiv = document.getElementById('errorMessage') || createErrorDiv();
+	errorDiv.textContent = message;
+	errorDiv.style.display = 'block';
+
+	setTimeout(() => {
+		errorDiv.style.display = 'none';
+	}, 5000);
 }
 
 function createErrorDiv() {
-    const div = document.createElement('div');
-    div.id = 'errorMessage';
-    div.style.cssText = 'position:fixed; top:20px; right:20px; background:red; color:white; padding:15px; border-radius:5px; z-index:10000;';
-    document.body.appendChild(div);
-    return div;
+	const div = document.createElement('div');
+	div.id = 'errorMessage';
+	div.style.cssText = 'position:fixed; top:20px; right:20px; background:red; color:white; padding:15px; border-radius:5px; z-index:10000;';
+	document.body.appendChild(div);
+	return div;
 }
 
 // ✅ ADDED: Safe results display function
 function updateResultsDisplay(stats) {
-    const safeStats = {
-        max_depth: safeToFloat(stats?.max_depth),
-        mean_depth: safeToFloat(stats?.mean_depth),
-        min_elevation: safeToFloat(stats?.min_elevation),
-        max_elevation: safeToFloat(stats?.max_elevation)
-    };
+	const safeStats = {
+		max_depth: safeToFloat(stats?.max_depth),
+		mean_depth: safeToFloat(stats?.mean_depth),
+		min_elevation: safeToFloat(stats?.min_elevation),
+		max_elevation: safeToFloat(stats?.max_elevation)
+	};
 
-    // Safely update all display elements
-    const elements = {
-        'max-depth': safeToFixed(safeStats.max_depth) + 'm',
-        'mean-depth': safeToFixed(safeStats.mean_depth) + 'm',
-        'min-elevation': safeToFixed(safeStats.min_elevation) + 'm',
-        'max-elevation': safeToFixed(safeStats.max_elevation) + 'm'
-    };
+	// Safely update all display elements
+	const elements = {
+		'max-depth': safeToFixed(safeStats.max_depth) + 'm',
+		'mean-depth': safeToFixed(safeStats.mean_depth) + 'm',
+		'min-elevation': safeToFixed(safeStats.min_elevation) + 'm',
+		'max-elevation': safeToFixed(safeStats.max_elevation) + 'm'
+	};
 
-    // Update each element safely
-    Object.keys(elements).forEach(id => {
-        const element = document.getElementById(id);
-        if (element) {
-            element.textContent = elements[id];
-        }
-    });
+	// Update each element safely
+	Object.keys(elements).forEach(id => {
+		const element = document.getElementById(id);
+		if (element) {
+			element.textContent = elements[id];
+		}
+	});
 }
 // [file content end]
