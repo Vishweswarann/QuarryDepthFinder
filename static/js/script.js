@@ -1,5 +1,4 @@
 // [file name]: static/js/script.js
-// [file content begin]
 // NOTE:Initialize map centered on India
 var map = L.map('map').setView([20.5937, 78.9629], 5);
 
@@ -36,8 +35,9 @@ var drawControl = new L.Control.Draw({
 			allowIntersection: false,
 			showArea: true,
 			shapeOptions: {
-				color: '#ff7800',
-				fillColor: '#ff7800',
+				// MODIFIED: Color changed to new theme
+				color: '#1abc9c',
+				fillColor: '#1abc9c',
 				fillOpacity: 0.3
 			}
 		},
@@ -76,20 +76,68 @@ function safeToFloat(value) {
 	return Number(value);
 }
 
-// ✅ ADDED: Instructions popup
+// ✅ RENAMED: Terminal output storage is now analysisLog
+let analysisLog = [];
+
+// ✅ RENAMED: Function to add log messages
+function addTerminalMessage(message, type = 'info') {
+	const timestamp = new Date().toLocaleTimeString();
+	analysisLog.push({ timestamp, message, type });
+	
+	// Keep only last 20 messages
+	if (analysisLog.length > 20) {
+		analysisLog = analysisLog.slice(-20);
+	}
+	
+	updateTerminalDisplay();
+}
+
+// ✅ RENAMED: Function to update terminal display
+function updateTerminalDisplay() {
+	const terminalDiv = document.getElementById('terminal_output');
+	if (!terminalDiv) return;
+	
+	let html = `
+		<div style="background: #1e1e1e; color: #00ff00; padding: 15px; border-radius: 8px; margin: 20px 0; font-family: 'Courier New', monospace; font-size: 12px; max-height: 300px; overflow-y: auto;">
+			<div style="color: #ffffff; margin-bottom: 10px; font-weight: bold;">🖥️ ANALYSIS LOG</div>
+	`;
+	
+	analysisLog.forEach(entry => {
+		const icon = entry.type === 'success' ? '✅' : entry.type === 'error' ? '❌' : entry.type === 'warning' ? '⚠️' : '🔍';
+		html += `<div style="margin: 5px 0; border-left: 3px solid ${getColorForType(entry.type)}; padding-left: 10px;">
+			<span style="color: #888;">[${entry.timestamp}]</span> ${icon} ${entry.message}
+		</div>`;
+	});
+	
+	html += `</div>`;
+	terminalDiv.innerHTML = html;
+	terminalDiv.scrollTop = terminalDiv.scrollHeight;
+}
+
+// MODIFIED: Updated color scheme for terminal types
+function getColorForType(type) {
+	switch(type) {
+		case 'success': return '#2ecc71';
+		case 'error': return '#e74c3c';
+		case 'warning': return '#f39c12';
+		default: return '#95a5a6';
+	}
+}
+
+// ✅ RENAMED: Instructions popup updated to "Depth Finder"
 function showInstructions() {
 	L.popup()
 		.setLatLng([20.5937, 78.9629])
 		.setContent(`
 			<div style="text-align: center; padding: 10px;">
-				<h3>🎯 How to Analyze Quarry</h3>
+				<h3>🎯 How to Use the Depth Finder</h3>
 				<ol style="text-align: left; margin: 10px 0;">
 					<li><strong>Click the polygon tool</strong> in the top-right</li>
 					<li><strong>Draw a shape</strong> around your quarry area</li>
 					<li><strong>Double-click</strong> to finish drawing</li>
 					<li><strong>Wait for analysis</strong> to complete automatically</li>
 				</ol>
-				<button onclick="closeInstructions()" style="background: #3498db; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer;">
+				<button onclick="closeInstructions()" style="background: #16a085; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer;">
 					Got it!
 				</button>
 			</div>
@@ -118,6 +166,7 @@ function getBoundingBox(coords) {
 }
 
 function getHeatMap(dataToSend) {
+	addTerminalMessage("Starting DEM download from satellite...");
 	showAnalysisResults("⏳ Downloading REAL elevation data from satellite...");
 
 	fetch('/api/get_dem', {
@@ -128,6 +177,7 @@ function getHeatMap(dataToSend) {
 		.then(response => response.json())
 		.then(async data => {
 			console.log("Real DEM data received:", data);
+			addTerminalMessage("DEM data downloaded successfully", 'success');
 
 			// Display REAL data immediately from API response
 			if (data.status === 'success') {
@@ -152,18 +202,18 @@ function getHeatMap(dataToSend) {
 				.catch(err => console.error('Image fetch error:', err));
 
 			plot_img.src = imageUrl + '?t=' + new Date().getTime();
-			// img_container.appendChild(plot_img);
 
 			// Start detailed depth analysis
 			setTimeout(() => getDepthAnalysis(dataToSend), 1000);
 		})
 		.catch(err => {
 			console.error('Error:', err);
+			addTerminalMessage("Error downloading elevation data: " + err.message, 'error');
 			showAnalysisResults("❌ Error downloading elevation data: " + err.message);
 		});
 }
 
-// ✅ UPDATED: Show real-time results with SAFE formatting (removed volume and area)
+// ✅ UPDATED: Show real-time results with new color scheme
 function showRealTimeResults(data) {
 	// Safely extract values with fallbacks
 	const minElevation = safeToFixed(data.min_elevation);
@@ -171,7 +221,7 @@ function showRealTimeResults(data) {
 	const depth = safeToFixed(data.depth);
 
 	let html = `
-		<div style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 25px; border-radius: 15px; margin: 20px 0; text-align: center;">
+		<div style="background: linear-gradient(135deg, #34495e, #2c3e50); color: white; padding: 25px; border-radius: 15px; margin: 20px 0; text-align: center;">
 			<h3 style="margin: 0 0 15px 0;">📡 Real-time Satellite Data</h3>
 			<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 14px;">
 				<div>
@@ -200,11 +250,10 @@ function showRealTimeResults(data) {
 	resultsDiv.innerHTML = html + (resultsDiv.innerHTML || '');
 }
 
-// ✅ UPDATED: Better depth analysis with error handling
+// ✅ RENAMED & UPDATED: Better depth analysis with "Depth Finder" naming
 function getDepthAnalysis(dataToSend) {
-	console.log("Starting depth analysis...");
-
-	showAnalysisResults("⏳ Analyzing quarry depth...");
+	addTerminalMessage("Starting Depth Finder analysis with gradient descent...");
+	showAnalysisResults("⏳ Running Depth Finder analysis...");
 
 	fetch('/api/analyze_depth', {
 		method: 'POST',
@@ -219,6 +268,7 @@ function getDepthAnalysis(dataToSend) {
 		})
 		.then(data => {
 			console.log("Depth analysis response:", data);
+			addTerminalMessage("Depth analysis completed successfully", 'success');
 
 			if (data.status === 'success') {
 				// Display depth analysis results
@@ -229,13 +279,14 @@ function getDepthAnalysis(dataToSend) {
 		})
 		.catch(err => {
 			console.error('Depth analysis error:', err);
-			showAnalysisResults("❌ Error performing depth analysis: " + err.message);
+			addTerminalMessage("Error in Depth Finder analysis: " + err.message, 'error');
+			showAnalysisResults("❌ Error in Depth Finder analysis: " + err.message);
 			// Show fallback data
 			displayFallbackResults();
 		});
 }
 
-// ✅ UPDATED: Display depth analysis results with SAFE formatting (removed volume and area)
+// ✅ RENAMED & UPDATED: Display depth results with "Depth Finder" and new colors
 function displayDepthResults(stats, visualizationPath) {
 	// Safely extract all values with fallbacks
 	const safeStats = {
@@ -245,25 +296,36 @@ function displayDepthResults(stats, visualizationPath) {
 		original_surface_elevation: safeToFloat(stats?.original_surface_elevation),
 		quarry_bottom_elevation: safeToFloat(stats?.quarry_bottom_elevation),
 		min_depth: safeToFloat(stats?.min_depth),
-		quarry_pixels: safeToInteger(stats?.excavated_pixels || stats?.quarry_pixels)
+		quarry_pixels: safeToInteger(stats?.excavated_pixels || stats?.quarry_pixels),
+		total_area_m2: safeToFloat(stats?.total_area_m2),
+		volume_m3: safeToFloat(stats?.volume_m3),
+		surface_original_method: safeToFloat(stats?.surface_original_method),
+		surface_gradient_descent: safeToFloat(stats?.surface_gradient_descent)
 	};
 
 	// Calculate depth range
 	const depthRange = safeStats.max_depth - safeStats.min_depth;
 
+	// Add terminal messages for key findings
+	addTerminalMessage(`Gradient Descent Surface: ${safeToFixed(safeStats.surface_gradient_descent)}m`, 'success');
+	addTerminalMessage(`Original Surface: ${safeToFixed(safeStats.surface_original_method)}m`);
+	addTerminalMessage(`Max Depth: ${safeToFixed(safeStats.max_depth)}m`);
+	addTerminalMessage(`Quarry Area: ${safeToInteger(safeStats.total_area_m2)} m²`);
+	addTerminalMessage(`Excavation Volume: ${safeToInteger(safeStats.volume_m3)} m³`);
+
 	let html = `
-		<div style="background: white; padding: 25px; border-radius: 15px; margin: 20px 0; box-shadow: 0 4px 20px rgba(0,0,0,0.1); border: 2px solid #e74c3c;">
+		<div style="background: white; padding: 25px; border-radius: 15px; margin: 20px 0; box-shadow: 0 4px 20px rgba(0,0,0,0.1); border: 2px solid #16a085;">
 			<h3 style="color: #2c3e50; margin-bottom: 20px; text-align: center; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px;">
-				🏔️ REAL Quarry Analysis Complete
+				🏔️ Depth Finder Analysis Complete
 			</h3>
 			
 			<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px;">
-				<div style="background: linear-gradient(135deg, #ff6b6b, #ee5a52); padding: 20px; border-radius: 12px; color: white; text-align: center; box-shadow: 0 4px 15px rgba(255,107,107,0.3);">
+				<div style="background: linear-gradient(135deg, #2ecc71, #28b463); padding: 20px; border-radius: 12px; color: white; text-align: center; box-shadow: 0 4px 15px rgba(46, 204, 113, 0.3);">
 					<strong style="font-size: 14px;">📏 MAX DEPTH</strong><br>
 					<span style="font-size: 32px; font-weight: bold;">${safeToFixed(safeStats.max_depth)}m</span>
 					<div style="font-size: 12px; opacity: 0.9;">Range: ${safeToFixed(depthRange)}m</div>
 				</div>
-				<div style="background: linear-gradient(135deg, #4ecdc4, #44a08d); padding: 20px; border-radius: 12px; color: white; text-align: center; box-shadow: 0 4px 15px rgba(78,205,196,0.3);">
+				<div style="background: linear-gradient(135deg, #1abc9c, #16a085); padding: 20px; border-radius: 12px; color: white; text-align: center; box-shadow: 0 4px 15px rgba(26, 188, 156, 0.3);">
 					<strong style="font-size: 14px;">📊 AVG DEPTH</strong><br>
 					<span style="font-size: 32px; font-weight: bold;">${safeToFixed(safeStats.mean_depth)}m</span>
 					<div style="font-size: 12px; opacity: 0.9;">Median: ${safeToFixed(safeStats.median_depth)}m</div>
@@ -279,14 +341,15 @@ function displayDepthResults(stats, visualizationPath) {
 					<div><strong>🛰️ Data Points:</strong> ${safeStats.quarry_pixels} pixels analyzed</div>
 				</div>
 			</div>
-			
-			<div style="text-align: center; margin: 25px 0;">
-				<button onclick="showAdvancedFeatures()" style="background: linear-gradient(135deg, #3498db, #2980b9); color: white; border: none; padding: 15px 30px; border-radius: 25px; cursor: pointer; margin: 8px; font-size: 16px; font-weight: bold; box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);">
-					📊 Advanced Analysis
-				</button>
-				<button onclick="show3DView()" style="background: linear-gradient(135deg, #9b59b6, #8e44ad); color: white; border: none; padding: 15px 30px; border-radius: 25px; cursor: pointer; margin: 8px; font-size: 16px; font-weight: bold; box-shadow: 0 4px 15px rgba(155, 89, 182, 0.3);">
-					🗺️ 3D View
-				</button>
+
+			<div style="background: #e8f4fd; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #2ecc71;">
+				<h4 style="margin-top: 0; color: #2c3e50;">📊 Volume & Area Analysis</h4>
+				<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 14px;">
+					<div><strong>📐 Total Area:</strong> ${safeToInteger(safeStats.total_area_m2)} m²</div>
+					<div><strong>⛰️ Excavation Volume:</strong> ${safeToInteger(safeStats.volume_m3)} m³</div>
+					<div><strong>🎯 Surface (Gradient Descent):</strong> ${safeToFixed(safeStats.surface_gradient_descent)}m</div>
+					<div><strong>🏔️ Surface (Original):</strong> ${safeToFixed(safeStats.surface_original_method)}m</div>
+				</div>
 			</div>
 		</div>
 	`;
@@ -316,7 +379,7 @@ function displayDepthResults(stats, visualizationPath) {
 	}
 }
 
-// ✅ UPDATED: Fallback results when analysis fails (removed volume and area)
+// ✅ UPDATED: Fallback results when analysis fails
 function displayFallbackResults() {
 	const fallbackStats = {
 		max_depth: 25.5,
@@ -343,15 +406,6 @@ function showAnalysisResults(content) {
 	resultsDiv.innerHTML = content;
 }
 
-// ✅ ADDED: Navigation functions
-function showAdvancedFeatures() {
-	window.open('/advanced_features', '_blank');
-}
-
-function show3DView() {
-	window.open('/3d_viewer', '_blank');
-}
-
 function saveTheBoundary(coords) {
 	console.log(coords);
 	var sitename = document.getElementById("sitename").value;
@@ -364,7 +418,7 @@ function saveTheBoundary(coords) {
 		.catch(err => console.log(err))
 }
 
-// ✅ IMPROVED: Better polygon creation handling
+// ✅ IMPROVED: Better polygon creation handling with new colors
 map.on(L.Draw.Event.CREATED, function(e) {
 	var layer = e.layer;
 	drawnItems.addLayer(layer);
@@ -376,11 +430,12 @@ map.on(L.Draw.Event.CREATED, function(e) {
 	var coords = layer.getLatLngs()[0];  // Outer ring coords of polygon
 
 	console.log('Polygon created with coordinates:', coords);
+	addTerminalMessage(`Polygon created with ${coords.length} points`);
 
 	// Show loading immediately
 	showAnalysisResults(`
-		<div style="text-align: center; padding: 30px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-radius: 15px;">
-			<h3>🔄 Processing Your Quarry</h3>
+		<div style="text-align: center; padding: 30px; background: linear-gradient(135deg, #34495e, #2c3e50); color: white; border-radius: 15px;">
+			<h3>🔄 Processing Quarry Area</h3>
 			<p>Analyzing area: ${coords.length} points</p>
 			<div style="margin: 20px 0;">
 				<div style="width: 50px; height: 50px; border: 3px solid rgba(255,255,255,0.3); border-top: 3px solid white; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;"></div>
@@ -394,6 +449,7 @@ map.on(L.Draw.Event.CREATED, function(e) {
 
 	var bbox = getBoundingBox(coords);
 	console.log('Bounding Box:', bbox);
+	addTerminalMessage(`Bounding box: ${bbox.minLat.toFixed(4)}°N to ${bbox.maxLat.toFixed(4)}°N, ${bbox.minLng.toFixed(4)}°E to ${bbox.maxLng.toFixed(4)}°E`);
 
 	const dataToSend = {
 		dem: "COP",
@@ -426,6 +482,7 @@ map.on(L.Draw.Event.CREATED, function(e) {
 // ✅ ADDED: Handle draw events better
 map.on('draw:drawstart', function(e) {
 	console.log('Drawing started');
+	addTerminalMessage('Drawing started - click on map to create polygon vertices');
 });
 
 map.on('draw:drawstop', function(e) {
@@ -439,8 +496,9 @@ function displayBoundary(coords) {
 	map.flyTo(coords[0], 13);
 
 	const polygon = L.polygon(coords, {
-		color: '#ff7800',
-		fillColor: '#ff7800',
+		// MODIFIED: Color changed to new theme
+		color: '#1abc9c',
+		fillColor: '#1abc9c',
 		fillOpacity: 0.3,
 		weight: 3
 	}).addTo(map);
@@ -502,4 +560,3 @@ function updateResultsDisplay(stats) {
 		}
 	});
 }
-// [file content end]

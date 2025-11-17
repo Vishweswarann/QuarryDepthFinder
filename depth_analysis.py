@@ -4,6 +4,80 @@ from scipy import ndimage
 import matplotlib.pyplot as plt
 import os
 
+
+# === IMPROVED GRADIENT DESCENT OPTIMIZATION ===
+def gradient_descent_surface_optimization(dem_data, learning_rate=0.1, iterations=1000):
+    """
+    Use gradient descent to find optimal surface elevation that minimizes
+    the error between estimated and actual terrain
+    """
+    try:
+        # Get edge pixels for training data (wider edge for better sampling)
+        edge_width = 10  # Increased from 5
+        top_edge = dem_data[:edge_width, :]
+        bottom_edge = dem_data[-edge_width:, :] 
+        left_edge = dem_data[:, :edge_width]
+        right_edge = dem_data[:, -edge_width:]
+        
+        edge_elevations = np.concatenate([
+            top_edge.flatten(),
+            bottom_edge.flatten(),
+            left_edge.flatten(), 
+            right_edge.flatten()
+        ])
+        
+        # Remove NaN values and outliers
+        edge_elevations = edge_elevations[~np.isnan(edge_elevations)]
+        
+        if len(edge_elevations) == 0:
+            print("⚠️ No edge data, using fallback")
+            return np.nanmax(dem_data)
+        
+        # Remove extreme outliers (beyond 3 standard deviations)
+        mean_val = np.mean(edge_elevations)
+        std_val = np.std(edge_elevations)
+        filtered_elevations = edge_elevations[
+            (edge_elevations > mean_val - 3*std_val) & 
+            (edge_elevations < mean_val + 3*std_val)
+        ]
+        
+        if len(filtered_elevations) == 0:
+            filtered_elevations = edge_elevations  # Fallback to original
+        
+        print(f"📊 Edge data: {len(filtered_elevations)} points, range: {np.min(filtered_elevations):.1f}m to {np.max(filtered_elevations):.1f}m")
+        
+        # Better initial guess - 85th percentile (higher but realistic)
+        surface_estimate = np.percentile(filtered_elevations, 85)
+        
+        print(f"🔍 Starting gradient descent from: {surface_estimate:.2f}m")
+        
+        # Gradient descent to minimize MSE with edge elevations
+        for i in range(iterations):
+            # Calculate gradient (derivative of MSE)
+            error = surface_estimate - filtered_elevations
+            gradient = 2 * np.mean(error)
+            
+            # Update surface estimate
+            surface_estimate = surface_estimate - learning_rate * gradient
+            
+            # Early convergence check with tolerance
+            if abs(gradient) < 0.0001:
+                print(f"✅ Converged after {i} iterations")
+                break
+            
+            # Print progress every 100 iterations
+            if i % 100 == 0:
+                print(f"   Iteration {i}: surface={surface_estimate:.2f}m, gradient={gradient:.6f}")
+        
+        print(f"🎯 Gradient Descent Surface: {surface_estimate:.2f}m (after {i+1} iterations)")
+        return surface_estimate
+        
+    except Exception as e:
+        print(f"❌ Gradient descent failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return np.nanpercentile(dem_data[~np.isnan(dem_data)], 85)  # Fallback
+
 def calculate_quarry_depth(dem_file):
     """
     Calculate realistic quarry depth, volume, and area from DEM
@@ -33,8 +107,22 @@ def calculate_quarry_depth(dem_file):
                 print("❌ No valid data in DEM")
                 return create_fallback_data()
             
-            # Calculate realistic surface estimation
-            surface_elevation = estimate_original_surface(dem_data)
+            # FIX: Handle negative elevations
+            original_min = np.nanmin(dem_data)
+            if original_min < 0:
+                print(f"⚠️ Adjusting negative elevations (min: {original_min:.1f}m)")
+                elevation_shift = abs(original_min) + 10  # Shift to positive
+                dem_data = dem_data + elevation_shift
+                print(f"📐 Applied elevation shift: +{elevation_shift:.1f}m")
+            
+            # === GRADIENT DESCENT SURFACE ESTIMATION ===
+            print("🚀 ACTIVATING GRADIENT DESCENT OPTIMIZATION...")
+            surface_elevation_original = estimate_original_surface(dem_data)
+            surface_elevation_gd = gradient_descent_surface_optimization(dem_data)
+            
+            # Use gradient descent result
+            surface_elevation = surface_elevation_gd
+            
             quarry_bottom = np.nanmin(dem_data)
             
             # Calculate depth map
@@ -42,12 +130,12 @@ def calculate_quarry_depth(dem_file):
             depth_map[depth_map < 0] = 0  # Only positive depths (excavated areas)
             depth_map[np.isnan(dem_data)] = np.nan  # Preserve NaN areas
             
-            # Calculate realistic area (considering pixel size)
-            pixel_width = abs(transform[0])  # meters per pixel in x direction
-            pixel_height = abs(transform[4])  # meters per pixel in y direction
+            # === FIXED: PIXEL SIZE CALCULATION ===
+            # For SRTM DEM, use 30m resolution (standard)
+            pixel_width = 30.0
+            pixel_height = 30.0
             pixel_area = pixel_width * pixel_height
-            
-            print(f"📏 Pixel size: {pixel_width:.2f}m x {pixel_height:.2f}m = {pixel_area:.2f}m²")
+            print(f"📏 Using standard SRTM resolution: {pixel_width:.1f}m x {pixel_height:.1f}m = {pixel_area:.1f}m²")
             
             # Count only excavated pixels (depth > 0 and not NaN)
             valid_depth_mask = (depth_map > 0) & (~np.isnan(depth_map))
@@ -73,6 +161,8 @@ def calculate_quarry_depth(dem_file):
                 'median_depth': float(median_depth) if not np.isnan(median_depth) else 0.0,
                 'quarry_bottom_elevation': float(quarry_bottom) if not np.isnan(quarry_bottom) else 0.0,
                 'original_surface_elevation': float(surface_elevation) if not np.isnan(surface_elevation) else 0.0,
+                'surface_original_method': float(surface_elevation_original) if not np.isnan(surface_elevation_original) else 0.0,
+                'surface_gradient_descent': float(surface_elevation_gd) if not np.isnan(surface_elevation_gd) else 0.0,
                 'volume_m3': float(volume_m3) if not np.isnan(volume_m3) else 0.0,
                 'total_area_m2': float(total_area_m2) if not np.isnan(total_area_m2) else 0.0,
                 'excavated_pixels': int(excavated_pixels),
@@ -83,6 +173,8 @@ def calculate_quarry_depth(dem_file):
             print("✅ QUARRY ANALYSIS RESULTS:")
             print(f"   Max Depth: {stats['max_depth']:.1f}m")
             print(f"   Mean Depth: {stats['mean_depth']:.1f}m") 
+            print(f"   Surface (Original): {stats['surface_original_method']:.1f}m")
+            print(f"   Surface (Gradient Descent): {stats['surface_gradient_descent']:.1f}m")
             print(f"   Quarry Area: {stats['total_area_m2']:,.0f} m²")
             print(f"   Excavation Volume: {stats['volume_m3']:,.0f} m³")
             print(f"   Excavated Pixels: {stats['excavated_pixels']}")

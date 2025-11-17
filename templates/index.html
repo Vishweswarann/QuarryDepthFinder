@@ -1,5 +1,4 @@
 <!-- [file name]: templates/index.html -->
-<!-- [file content begin] -->
 <!DOCTYPE html>
 <html>
 
@@ -23,10 +22,12 @@
 			font-family: Arial, sans-serif;
 			margin: 0;
 			padding: 0;
-			background: #f5f5f5;
+			/* MODIFIED: Updated background color for a cooler tone */
+			background: #ecf0f1;
 		}
 		.header {
-			background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+			/* MODIFIED: New green and teal color scheme */
+			background: linear-gradient(135deg, #16a085 0%, #1abc9c 100%);
 			color: white;
 			padding: 25px;
 			text-align: center;
@@ -52,7 +53,8 @@
 			border-radius: 10px;
 			margin-bottom: 20px;
 			box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-			border-left: 5px solid #3498db;
+			/* MODIFIED: Accent border color updated to new theme */
+			border-left: 5px solid #1abc9c;
 		}
 		.saved-sites h3 {
 			margin-top: 0;
@@ -65,15 +67,17 @@
 			margin: 8px;
 			border-radius: 25px;
 			text-decoration: none;
-			color: #2c3e50;
+			/* MODIFIED: Link color updated to match new theme */
+			color: #16a085;
 			border: 2px solid #bdc3c7;
 			transition: all 0.3s;
 			font-weight: bold;
 		}
 		.saved-sites a:hover {
-			background: #3498db;
+			/* MODIFIED: Hover state colors updated to new theme */
+			background: #16a085;
 			color: white;
-			border-color: #3498db;
+			border-color: #16a085;
 			transform: translateY(-2px);
 			box-shadow: 0 4px 8px rgba(0,0,0,0.2);
 		}
@@ -83,28 +87,6 @@
 			box-shadow: 0 4px 20px rgba(0,0,0,0.15);
 			margin-bottom: 20px;
 			border: 3px solid white;
-		}
-		.feature-links {
-			text-align: center;
-			margin: 30px 0;
-		}
-		.feature-links a {
-			display: inline-block;
-			background: #2ecc71;
-			color: white;
-			padding: 15px 30px;
-			margin: 15px;
-			border-radius: 30px;
-			text-decoration: none;
-			font-weight: bold;
-			font-size: 1.1em;
-			transition: all 0.3s;
-			box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-		}
-		.feature-links a:hover {
-			background: #27ae60;
-			transform: translateY(-3px);
-			box-shadow: 0 8px 20px rgba(0,0,0,0.2);
 		}
 		.instructions {
 			background: white;
@@ -131,6 +113,41 @@
 			box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 			margin-top: 20px;
 		}
+		/* MODIFIED: Entire terminal block has a new non-black theme */
+		.terminal-output {
+			/* MODIFIED: Replaced black background with dark slate blue */
+			background: #2c3e50;
+			/* MODIFIED: Changed main text to an off-white for better readability */
+			color: #ecf0f1;
+			padding: 15px;
+			border-radius: 8px;
+			margin: 20px 0;
+			font-family: 'Courier New', monospace;
+			font-size: 12px;
+			max-height: 300px;
+			overflow-y: auto;
+			/* MODIFIED: Border color to complement new background */
+			border: 2px solid #34495e;
+		}
+		.terminal-header {
+			color: #ffffff;
+			margin-bottom: 10px;
+			font-weight: bold;
+			font-size: 14px;
+			/* MODIFIED: Border color to match new background */
+			border-bottom: 1px solid #4a617a;
+		}
+		.terminal-message {
+			margin: 5px 0;
+			/* MODIFIED: New accent color for the border */
+			border-left: 3px solid #1abc9c;
+			padding-left: 10px;
+		}
+		.terminal-timestamp {
+			/* MODIFIED: Softer timestamp color */
+			color: #95a5a6;
+			font-size: 11px;
+		}
 	</style>
 </head>
 
@@ -155,28 +172,31 @@
 			<ol>
 				<li><strong>Draw a polygon</strong> around your quarry area using the drawing tools on the map</li>
 				<li><strong>Wait for analysis</strong> - the system will automatically download DEM data and calculate depth</li>
-				<li><strong>View results</strong> - depth, volume, and area information will appear below the map</li>
-				<li><strong>Explore advanced features</strong> using the buttons below</li>
+				<li><strong>View results</strong> - depth, volume, area information and terminal output will appear below</li>
+				<li><strong>Monitor progress</strong> - watch real-time processing in the terminal output section</li>
 			</ol>
 		</div>
 		
 		<!-- MAP CONTAINER -->
 		<div id="map"></div>
-		
-		<div class="feature-links">
-			<a href="/advanced_features" target="_blank">📊 Advanced Analysis</a>
-			<a href="/3d_viewer" target="_blank">🗺️ 3D Visualization</a>
-			<a href="/test_depth" target="_blank">🧪 Test Depth Calculation</a>
-		</div>
 			
 		<!-- ANALYSIS RESULTS -->
 		<div id="analysis_container">
 			<div id="analysis_results">
-				<p style="text-align: center; color: #7f8c8d; font-style: italic;">
+				<!-- MODIFIED: Placeholder text color updated -->
+				<p style="text-align: center; color: #95a5a6; font-style: italic;">
 					Draw a polygon on the map to see quarry analysis results here...
 				</p>
 			</div>
 			<div id="img_container"></div>
+		</div>
+
+		<!-- TERMINAL OUTPUT -->
+		<div id="terminal_output" class="terminal-output">
+			<div class="terminal-header">🖥️ ANALYSIS LOG</div>
+			<div class="terminal-message">
+				<span class="terminal-timestamp">[System Ready]</span> 🔍 Waiting for quarry analysis to begin...
+			</div>
 		</div>
 	</div>
 
@@ -194,4 +214,3 @@
 	<script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 </html>
-<!-- [file content end] -->
