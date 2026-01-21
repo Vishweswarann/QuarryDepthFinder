@@ -1,4 +1,9 @@
-// [file name]: static/js/script.js
+// Global variables to store the workflow state
+var currentPolygonCoords = null;
+var bbox = null;
+var coords = null;
+
+
 // NOTE:Initialize map centered on India
 var map = L.map('map').setView([20.5937, 78.9629], 5);
 
@@ -44,7 +49,7 @@ var drawControl = new L.Control.Draw({
 		polyline: false,
 		rectangle: false,
 		circle: false,
-		marker: false
+		marker: true
 	}
 });
 map.addControl(drawControl);
@@ -83,12 +88,12 @@ let analysisLog = [];
 function addTerminalMessage(message, type = 'info') {
 	const timestamp = new Date().toLocaleTimeString();
 	analysisLog.push({ timestamp, message, type });
-	
+
 	// Keep only last 20 messages
 	if (analysisLog.length > 20) {
 		analysisLog = analysisLog.slice(-20);
 	}
-	
+
 	updateTerminalDisplay();
 }
 
@@ -96,19 +101,19 @@ function addTerminalMessage(message, type = 'info') {
 function updateTerminalDisplay() {
 	const terminalDiv = document.getElementById('terminal_output');
 	if (!terminalDiv) return;
-	
+
 	let html = `
 		<div style="background: #1e1e1e; color: #00ff00; padding: 15px; border-radius: 8px; margin: 20px 0; font-family: 'Courier New', monospace; font-size: 12px; max-height: 300px; overflow-y: auto;">
 			<div style="color: #ffffff; margin-bottom: 10px; font-weight: bold;">🖥️ ANALYSIS LOG</div>
 	`;
-	
+
 	analysisLog.forEach(entry => {
 		const icon = entry.type === 'success' ? '✅' : entry.type === 'error' ? '❌' : entry.type === 'warning' ? '⚠️' : '🔍';
 		html += `<div style="margin: 5px 0; border-left: 3px solid ${getColorForType(entry.type)}; padding-left: 10px;">
 			<span style="color: #888;">[${entry.timestamp}]</span> ${icon} ${entry.message}
 		</div>`;
 	});
-	
+
 	html += `</div>`;
 	terminalDiv.innerHTML = html;
 	terminalDiv.scrollTop = terminalDiv.scrollHeight;
@@ -116,7 +121,7 @@ function updateTerminalDisplay() {
 
 // MODIFIED: Updated color scheme for terminal types
 function getColorForType(type) {
-	switch(type) {
+	switch (type) {
 		case 'success': return '#2ecc71';
 		case 'error': return '#e74c3c';
 		case 'warning': return '#f39c12';
@@ -419,24 +424,61 @@ function saveTheBoundary(coords) {
 }
 
 // ✅ IMPROVED: Better polygon creation handling with new colors
-map.on(L.Draw.Event.CREATED, function(e) {
+map.on(L.Draw.Event.CREATED, function (e) {
+	var type = e.layerType;
 	var layer = e.layer;
-	drawnItems.addLayer(layer);
 
-	// Clear previous layers
-	drawnItems.clearLayers();
-	drawnItems.addLayer(layer);
+	if (type === "polygon") {
 
-	var coords = layer.getLatLngs()[0];  // Outer ring coords of polygon
 
-	console.log('Polygon created with coordinates:', coords);
-	addTerminalMessage(`Polygon created with ${coords.length} points`);
+		// Clear previous layers
+		drawnItems.clearLayers();
+		drawnItems.addLayer(layer);
 
-	// Show loading immediately
-	showAnalysisResults(`
+		coords = layer.getLatLngs()[0];  // Outer ring coords of polygon
+
+		console.log('Polygon created with coordinates:', coords);
+		addTerminalMessage(`Polygon created with ${coords.length} points`);
+
+
+		// ✅ IMPROVED: Better popup with site saving
+		layer.on('click', function (event) {
+			const popupCoords = layer.getLatLngs()[0].map(pt => [pt.lat.toFixed(4), pt.lng.toFixed(4)]);
+			const popup = L.popup()
+				.setLatLng(event.latlng)
+				.setContent(`
+				<div style="min-width: 250px;">
+					<h4 style="margin: 0 0 10px 0;">💾 Save This Quarry</h4>
+					<p><strong>Coordinates:</strong> ${popupCoords.length} points</p>
+					<input type='text' id='sitename' placeholder='Enter quarry name' style="width: 100%; padding: 8px; margin: 5px 0; border: 1px solid #ddd; border-radius: 4px;">
+					<button onclick='saveTheBoundary(${JSON.stringify(popupCoords)})' style="width: 100%; background: #27ae60; color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer; margin-top: 5px;">
+						💾 Save Quarry
+					</button>
+				</div>
+			`)
+				.openOn(map);
+		});
+
+	}
+
+	else if (type === "marker") {
+		if (!coords) {
+			alert("⚠️ Please draw the Quarry Boundary (Polygon) first!");
+			return;
+		}
+		drawnItems.addLayer(layer);
+
+		// 1. Get Marker Coordinates
+		var refLat = layer.getLatLng().lat;
+		var refLng = layer.getLatLng().lng;
+
+		console.log("📍 Reference point set at:", refLat, refLng);
+
+
+		// Show loading immediately
+		showAnalysisResults(`
 		<div style="text-align: center; padding: 30px; background: linear-gradient(135deg, #34495e, #2c3e50); color: white; border-radius: 15px;">
 			<h3>🔄 Processing Quarry Area</h3>
-			<p>Analyzing area: ${coords.length} points</p>
 			<div style="margin: 20px 0;">
 				<div style="width: 50px; height: 50px; border: 3px solid rgba(255,255,255,0.3); border-top: 3px solid white; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;"></div>
 			</div>
@@ -447,45 +489,30 @@ map.on(L.Draw.Event.CREATED, function(e) {
 		</style>
 	`);
 
-	var bbox = getBoundingBox(coords);
-	console.log('Bounding Box:', bbox);
-	addTerminalMessage(`Bounding box: ${bbox.minLat.toFixed(4)}°N to ${bbox.maxLat.toFixed(4)}°N, ${bbox.minLng.toFixed(4)}°E to ${bbox.maxLng.toFixed(4)}°E`);
+		bbox = getBoundingBox(coords);
+		console.log('Bounding Box:', bbox);
+		addTerminalMessage(`Bounding box: ${bbox.minLat.toFixed(4)}°N to ${bbox.maxLat.toFixed(4)}°N, ${bbox.minLng.toFixed(4)}°E to ${bbox.maxLng.toFixed(4)}°E`);
 
-	const dataToSend = {
-		dem: "COP",
-		coords: coords,
-		bbox: bbox
-	};
+		const dataToSend = {
+			dem: "COP",
+			coords: coords,
+			bbox: bbox,
+			reference_point: { lat: refLat, lng: refLng }
+		};
 
-	// Start the analysis process
-	getHeatMap(dataToSend);
+		// Start the analysis process
+		getHeatMap(dataToSend);
 
-	// ✅ IMPROVED: Better popup with site saving
-	layer.on('click', function(event) {
-		const popupCoords = layer.getLatLngs()[0].map(pt => [pt.lat.toFixed(4), pt.lng.toFixed(4)]);
-		const popup = L.popup()
-			.setLatLng(event.latlng)
-			.setContent(`
-				<div style="min-width: 250px;">
-					<h4 style="margin: 0 0 10px 0;">💾 Save This Quarry</h4>
-					<p><strong>Coordinates:</strong> ${popupCoords.length} points</p>
-					<input type='text' id='sitename' placeholder='Enter quarry name' style="width: 100%; padding: 8px; margin: 5px 0; border: 1px solid #ddd; border-radius: 4px;">
-					<button onclick='saveTheBoundary(${JSON.stringify(popupCoords)})' style="width: 100%; background: #27ae60; color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer; margin-top: 5px;">
-						💾 Save Quarry
-					</button>
-				</div>
-			`)
-			.openOn(map);
-	});
+	}
 });
 
 // ✅ ADDED: Handle draw events better
-map.on('draw:drawstart', function(e) {
+map.on('draw:drawstart', function (e) {
 	console.log('Drawing started');
 	addTerminalMessage('Drawing started - click on map to create polygon vertices');
 });
 
-map.on('draw:drawstop', function(e) {
+map.on('draw:drawstop', function (e) {
 	console.log('Drawing stopped');
 });
 

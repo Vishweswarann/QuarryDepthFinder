@@ -1,7 +1,6 @@
-# [file name]: main.py
-# [file content begin]
 from flask import Flask
 from flask_pymongo import PyMongo
+
 
 def createApp():
     app = Flask(__name__)

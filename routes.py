@@ -3,10 +3,12 @@ import os
 from datetime import datetime
 
 import matplotlib
+
 matplotlib.use('Agg')
+import random
+
 import matplotlib.pyplot as plt
 import numpy as np
-import random
 from flask import (Blueprint, flash, jsonify, redirect, render_template,
                    request, url_for)
 
@@ -64,6 +66,8 @@ def callRoutes(app, mongo):
         print(coords)
         bbox = data.get("bbox")
 
+        referencePoint = data.get("reference_point")
+
         coords_list = [[p["lat"], p["lng"]] for p in coords]
 
         minLat = float(bbox.get("minLat"))
@@ -86,7 +90,7 @@ def callRoutes(app, mongo):
         # ✅ FIX: Import inside function to avoid circular imports
         try:
             from depth_analysis import calculate_quarry_depth
-            depth_data, depth_stats, transform, crs = calculate_quarry_depth("cropped.tif")
+            depth_data, depth_stats, transform, crs = calculate_quarry_depth("cropped.tif", referencePoint)
             
             return jsonify({
                 "status": "success",
@@ -110,15 +114,27 @@ def callRoutes(app, mongo):
                 "mean_depth": 12.3
             })
 
+
+
     @routes.route("/api/analyze_depth", methods=["POST"])
     def analyze_depth():
         """Analyze quarry depth from the latest DEM"""
         try:
-            # ✅ FIX: Import inside function
-            from depth_analysis import calculate_quarry_depth, generate_depth_visualization
+            data = request.get_json()  
+            
+            # 2. Extract the reference point
+            reference_point = data.get("reference_point") 
+
+            if reference_point:
+                 print(f"📍 Analyze Depth Route received reference: {reference_point}")
+
+            from depth_analysis import (calculate_quarry_depth,
+                                        generate_depth_visualization)
             
             dem_file = "cropped.tif"
-            depth_data, stats, transform, crs = calculate_quarry_depth(dem_file)
+            
+            # 3. Pass it to the function
+            depth_data, stats, transform, crs = calculate_quarry_depth(dem_file, reference_point)
             
             # Save depth visualization
             viz_path = "static/Figure/depth_analysis.png"
