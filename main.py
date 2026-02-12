@@ -8,7 +8,6 @@ def createApp():
     mongo = PyMongo(app)
     app.secret_key = "vanakam"
 
-    # ✅ FIX: Import and register routes properly (no circular imports)
     try:
         from routes import callRoutes
         routes_bp = callRoutes(app, mongo)
@@ -20,7 +19,6 @@ def createApp():
     except Exception as e:
         print(f"❌ Main routes error: {e}")
     
-    # ✅ FIX: Register advanced routes
     try:
         from advanced_routes import create_advanced_routes
         advanced_bp = create_advanced_routes(app, mongo)
@@ -32,7 +30,6 @@ def createApp():
     except Exception as e:
         print(f"❌ Advanced routes error: {e}")
         
-    # ✅ FIX: Register test routes  
     try:
         from test_depth import create_test_routes
         test_bp = create_test_routes(app)

@@ -36,7 +36,7 @@ def callRoutes(app, mongo):
 
     @routes.route("/OneMeterDem")
     def OneMeterDem():
-        return render_template("1mdem.html")
+        return render_template("oneMeterDem.html")
 
     @routes.route("/test")
     def test():

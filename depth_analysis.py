@@ -1,5 +1,6 @@
 import os
 
+import matplotlib.colors
 import matplotlib.pyplot as plt
 import numpy as np
 import rasterio
@@ -234,57 +235,109 @@ def estimate_original_surface(dem_data):
         print(f"❌ Error estimating surface: {e}")
         return 100.0  # Safe fallback
 
+
+# In QuarryDepthFinder3/depth_analysis.py
+
 def generate_depth_visualization(depth_data, output_path):
     """
-    Generate visualization of quarry depth analysis
+    Generate a professional-grade visualization with DISCRETE colors and LABELS.
     """
     try:
-        plt.figure(figsize=(12, 8))
+        # Increase figure size for better resolution
+        fig = plt.figure(figsize=(16, 10))
         
-        # Create subplots
-        plt.subplot(2, 2, 1)
-        plt.imshow(depth_data, cmap='terrain', aspect='auto')
-        plt.colorbar(label='Elevation (m)')
-        plt.title('DEM Elevation Data')
+        # --- PLOT 1: The Main Depth Map (Top Left) ---
+        ax1 = plt.subplot(2, 2, 1)
         
-        plt.subplot(2, 2, 2)
+        # Mask out zero values (unexcavated ground)
         depth_display = depth_data.copy()
-        depth_display[depth_data == 0] = np.nan
-        plt.imshow(depth_display, cmap='RdYlBu_r', aspect='auto')
-        plt.colorbar(label='Depth (m)')
-        plt.title('Quarry Depth Map')
+        depth_display[depth_data <= 0] = np.nan
         
-        plt.subplot(2, 2, 3)
-        # Histogram of depths
+        # 1. Define Discrete Levels (The "Steps")
+        max_depth = np.nanmax(depth_data)
+        if np.isnan(max_depth) or max_depth == 0:
+            max_depth = 10 # Fallback
+            
+        # Create ~15 distinct levels (e.g., 0, 5, 10, 15...)
+        num_levels = 15
+        levels = np.linspace(0, max_depth, num_levels + 1)
+        
+        # 2. Create a Discrete Colormap (No more smooth blending)
+        # 'Spectral_r' is good, but we discretize it into N chunks
+        cmap = plt.get_cmap('Spectral_r', num_levels)
+        norm = matplotlib.colors.BoundaryNorm(levels, ncolors=cmap.N, clip=True)
+        
+        # 3. Plot with 'norm' to enforce discrete colors
+        img1 = ax1.imshow(depth_display, cmap=cmap, norm=norm, aspect='equal')
+        
+        # 4. Add Contour Lines AND Labels (The Numbers)
+        if max_depth > 0:
+            # Draw black lines at the boundaries
+            contours = ax1.contour(depth_display, levels=levels, colors='black', linewidths=0.5, alpha=0.6)
+            # Add NUMBERS to the lines!
+            ax1.clabel(contours, inline=True, fontsize=8, fmt='%1.0fm', colors='black')
+            
+        # Add colorbar with ticks at every level
+        cbar = plt.colorbar(img1, ax=ax1, label='Depth (m)', ticks=levels, format='%.0fm')
+        cbar.ax.tick_params(labelsize=8)
+        
+        ax1.set_title(f'Discrete Depth Map (Max: {max_depth:.1f}m)', fontsize=12, fontweight='bold')
+        ax1.set_xlabel('Distance (pixels)')
+        ax1.set_ylabel('Distance (pixels)')
+        
+        # --- PLOT 2: Raw Elevation Data (Top Right) ---
+        ax2 = plt.subplot(2, 2, 2)
+        
+        # Hillshade for 3D context
+        ls = matplotlib.colors.LightSource(azdeg=315, altdeg=45)
+        dem_safe = depth_data.copy()
+        dem_safe[np.isnan(dem_safe)] = 0
+        rgb = ls.shade(dem_safe, cmap=plt.cm.terrain, vert_exag=0.1, blend_mode='soft')
+        
+        ax2.imshow(rgb, aspect='equal')
+        ax2.set_title('3D Terrain Context', fontsize=12)
+        ax2.axis('off')
+        
+        # --- PLOT 3: Depth Histogram (Bottom Left) ---
+        ax3 = plt.subplot(2, 2, 3)
         depths = depth_data[(depth_data > 0) & (~np.isnan(depth_data))]
         if len(depths) > 0:
-            plt.hist(depths, bins=50, alpha=0.7, color='blue')
-            plt.xlabel('Depth (m)')
-            plt.ylabel('Frequency')
-            plt.title('Depth Distribution')
+            # Match histogram colors to the map
+            n, bins, patches = ax3.hist(depths, bins=levels, edgecolor='black', alpha=0.8)
+            # Color the bars to match the depth map
+            for i, patch in enumerate(patches):
+                # Map the bin center to our colormap
+                color_val = (bins[i] + bins[i+1])/2
+                patch.set_facecolor(cmap(norm(color_val)))
+                
+            ax3.set_xlabel('Depth Range (m)')
+            ax3.set_ylabel('Pixel Count')
+            ax3.set_title('Depth Frequency Distribution')
         else:
-            plt.text(0.5, 0.5, 'No depth data', ha='center', va='center', transform=plt.gca().transAxes)
-            plt.title('Depth Distribution - No Data')
-    
-        plt.subplot(2, 2, 4)
-        # Area calculation explanation
+            ax3.text(0.5, 0.5, 'No Excavation Detected', ha='center', va='center')
+
+        # --- PLOT 4: Stats Summary (Bottom Right) ---
+        ax4 = plt.subplot(2, 2, 4)
+        ax4.axis('off')
+        
         valid_pixels = np.sum(~np.isnan(depth_data))
         excavated_pixels = np.sum((depth_data > 0) & (~np.isnan(depth_data)))
-        unexcavated_pixels = valid_pixels - excavated_pixels
         
-        if valid_pixels > 0:
-            labels = ['Excavated Area', 'Unexcavated Area']
-            sizes = [excavated_pixels, unexcavated_pixels]
-            colors = ['red', 'green']
-            plt.pie(sizes, labels=labels, colors=colors, autopct='%1.1f%%', startangle=90)
-            plt.title('Area Distribution')
-        else:
-            plt.text(0.5, 0.5, 'No valid data', ha='center', va='center', transform=plt.gca().transAxes)
-            plt.title('Area Distribution - No Data')
-        
+        summary_text = (
+            f"QUARRY ANALYSIS REPORT\n"
+            f"----------------------\n"
+            f"Max Depth: {max_depth:.2f} m\n"
+            f"Avg Depth: {np.nanmean(depths):.2f} m\n"
+            f"\n"
+            f"Total Area: {valid_pixels} px\n"
+            f"Excavated:  {excavated_pixels} px\n"
+            f"\n"
+            f"Visualization Type:\n"
+            f"Discrete Steps ({num_levels} levels)\n"
+        )
+        ax4.text(0.1, 0.5, summary_text, fontsize=12, family='monospace', va='center')
+
         plt.tight_layout()
-        
-        # Ensure directory exists
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         plt.savefig(output_path, dpi=150, bbox_inches='tight')
         plt.close()
@@ -294,52 +347,3 @@ def generate_depth_visualization(depth_data, output_path):
         print(f"❌ Error generating visualization: {e}")
         import traceback
         traceback.print_exc()
-
-def create_fallback_data():
-    """
-    Create realistic fallback data when analysis fails
-    """
-    print("🔄 Creating fallback data...")
-    
-    # Generate realistic quarry-like data
-    width, height = 200, 150
-    x, y = np.meshgrid(np.linspace(0, 1, width), np.linspace(0, 1, height))
-    
-    # Create quarry depression
-    center_x, center_y = 0.5, 0.5
-    distance = np.sqrt((x - center_x)**2 + (y - center_y)**2)
-    
-    # Quarry shape: deep center, sloping sides
-    depth_map = np.zeros_like(distance)
-    quarry_mask = distance < 0.4
-    depth_map[quarry_mask] = (0.4 - distance[quarry_mask]) * 80  # 0-32m depth
-    
-    # Add some noise for realism
-    depth_map += np.random.normal(0, 2, depth_map.shape)
-    depth_map[depth_map < 0] = 0
-    
-    # Realistic stats for a medium-sized quarry
-    pixel_area = 25  # 5m x 5m pixels
-    excavated_pixels = np.sum(quarry_mask)
-    total_area = excavated_pixels * pixel_area
-    volume = np.sum(depth_map) * pixel_area
-    
-    stats = {
-        'max_depth': float(np.max(depth_map)),
-        'mean_depth': float(np.mean(depth_map[quarry_mask])),
-        'median_depth': float(np.median(depth_map[quarry_mask])),
-        'quarry_bottom_elevation': 45.2,
-        'original_surface_elevation': 85.2,
-        'volume_m3': float(volume),
-        'total_area_m2': float(total_area),
-        'excavated_pixels': int(excavated_pixels),
-        'pixel_area_m2': float(pixel_area),
-        'depth_range': float(np.max(depth_map))
-    }
-    
-    print("📋 USING REALISTIC FALLBACK DATA:")
-    print(f"   Max Depth: {stats['max_depth']:.1f}m")
-    print(f"   Quarry Area: {stats['total_area_m2']:,.0f} m²")
-    print(f"   Excavation Volume: {stats['volume_m3']:,.0f} m³")
-    
-    return depth_map, stats, None, None

@@ -8,14 +8,15 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 	<!-- Leaflet CSS -->
-	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-		integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-
+	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" 
+		integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+	
 	<!-- Leaflet Draw CSS -->
-	<link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
-
+	<link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css"/>
+	
 	<!-- MapTiler Geocoding -->
 	<link href="https://cdn.maptiler.com/maptiler-geocoding-control/v1.4.1/style.css" rel="stylesheet">
+	
 
 	<!-- For zooming of the image -->
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.6/viewer.min.css">
@@ -29,48 +30,41 @@
 			/* MODIFIED: Updated background color for a cooler tone */
 			background: #ecf0f1;
 		}
-
 		.header {
 			/* MODIFIED: New green and teal color scheme */
 			background: linear-gradient(135deg, #16a085 0%, #1abc9c 100%);
 			color: white;
 			padding: 25px;
 			text-align: center;
-			box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+			box-shadow: 0 4px 15px rgba(0,0,0,0.1);
 		}
-
 		.header h1 {
 			margin: 0;
 			font-size: 2.5em;
 		}
-
 		.header p {
 			margin: 10px 0 0 0;
 			font-size: 1.2em;
 			opacity: 0.9;
 		}
-
 		.container {
 			max-width: 1200px;
 			margin: 0 auto;
 			padding: 20px;
 		}
-
 		.saved-sites {
 			background: white;
 			padding: 20px;
 			border-radius: 10px;
 			margin-bottom: 20px;
-			box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+			box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 			/* MODIFIED: Accent border color updated to new theme */
 			border-left: 5px solid #1abc9c;
 		}
-
 		.saved-sites h3 {
 			margin-top: 0;
 			color: #2c3e50;
 		}
-
 		.saved-sites a {
 			display: inline-block;
 			background: #ecf0f1;
@@ -84,54 +78,46 @@
 			transition: all 0.3s;
 			font-weight: bold;
 		}
-
 		.saved-sites a:hover {
 			/* MODIFIED: Hover state colors updated to new theme */
 			background: #16a085;
 			color: white;
 			border-color: #16a085;
 			transform: translateY(-2px);
-			box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+			box-shadow: 0 4px 8px rgba(0,0,0,0.2);
 		}
-
 		#map {
 			height: 600px;
 			border-radius: 15px;
-			box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+			box-shadow: 0 4px 20px rgba(0,0,0,0.15);
 			margin-bottom: 20px;
 			border: 3px solid white;
 		}
-
 		.instructions {
 			background: white;
 			padding: 20px;
 			border-radius: 10px;
 			margin-bottom: 20px;
-			box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+			box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 		}
-
 		.instructions h3 {
 			color: #2c3e50;
 			margin-top: 0;
 		}
-
 		.instructions ol {
 			padding-left: 20px;
 		}
-
 		.instructions li {
 			margin-bottom: 10px;
 			line-height: 1.6;
 		}
-
 		#analysis_container {
 			background: white;
 			padding: 20px;
 			border-radius: 10px;
-			box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+			box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 			margin-top: 20px;
 		}
-
 		/* MODIFIED: Entire terminal block has a new non-black theme */
 		.terminal-output {
 			/* MODIFIED: Replaced black background with dark slate blue */
@@ -148,7 +134,6 @@
 			/* MODIFIED: Border color to complement new background */
 			border: 2px solid #34495e;
 		}
-
 		.terminal-header {
 			color: #ffffff;
 			margin-bottom: 10px;
@@ -157,36 +142,16 @@
 			/* MODIFIED: Border color to match new background */
 			border-bottom: 1px solid #4a617a;
 		}
-
 		.terminal-message {
 			margin: 5px 0;
 			/* MODIFIED: New accent color for the border */
 			border-left: 3px solid #1abc9c;
 			padding-left: 10px;
 		}
-
 		.terminal-timestamp {
 			/* MODIFIED: Softer timestamp color */
 			color: #95a5a6;
 			font-size: 11px;
-		}
-
-		/* Add to your CSS */
-		.zoom-container {
-			overflow: hidden;
-			position: relative;
-			cursor: zoom-in;
-		}
-
-		.zoom-container img {
-			transition: transform 0.3s ease;
-			/* Smooth transition */
-			width: 100%;
-		}
-
-		.zoom-container:hover img {
-			transform: scale(2.5);
-			/* Zoom level (2.5x) */
 		}
 	</style>
 </head>
@@ -206,22 +171,20 @@
 			{% endfor %}
 		</div>
 		{% endif %}
-
+		
 		<div class="instructions">
 			<h3>🎯 How to Use:</h3>
 			<ol>
 				<li><strong>Draw a polygon</strong> around your quarry area using the drawing tools on the map</li>
-				<li><strong>Wait for analysis</strong> - the system will automatically download DEM data and calculate
-					depth</li>
-				<li><strong>View results</strong> - depth, volume, area information and terminal output will appear
-					below</li>
+				<li><strong>Wait for analysis</strong> - the system will automatically download DEM data and calculate depth</li>
+				<li><strong>View results</strong> - depth, volume, area information and terminal output will appear below</li>
 				<li><strong>Monitor progress</strong> - watch real-time processing in the terminal output section</li>
 			</ol>
 		</div>
-
+		
 		<!-- MAP CONTAINER -->
 		<div id="map"></div>
-
+			
 		<!-- ANALYSIS RESULTS -->
 		<div id="analysis_container">
 			<div id="analysis_results">
@@ -243,17 +206,16 @@
 	</div>
 
 	<!-- Leaflet JS -->
-	<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+	<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" 
 		integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-
+	
 	<!-- Leaflet Draw JS -->
 	<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
-
+	
 	<!-- MapTiler Geocoding -->
 	<script src="https://cdn.maptiler.com/maptiler-geocoding-control/v1.4.1/leaflet.umd.js"></script>
-
+	
 	<!-- Our Script -->
-	<script src="{{ url_for('static', filename='js/script.js') }}"></script>
+	<script src="{{ url_for('static', filename='js/oneMeterDem.js') }}"></script>
 </body>
-
 </html>

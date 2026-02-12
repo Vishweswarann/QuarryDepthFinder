@@ -311,7 +311,7 @@ function displayDepthResults(stats, visualizationPath) {
 	// Calculate depth range
 	const depthRange = safeStats.max_depth - safeStats.min_depth;
 
-	// Add terminal messages
+	// Add terminal messages for key findings
 	addTerminalMessage(`Gradient Descent Surface: ${safeToFixed(safeStats.surface_gradient_descent)}m`, 'success');
 	addTerminalMessage(`Original Surface: ${safeToFixed(safeStats.surface_original_method)}m`);
 	addTerminalMessage(`Max Depth: ${safeToFixed(safeStats.max_depth)}m`);
@@ -319,45 +319,45 @@ function displayDepthResults(stats, visualizationPath) {
 	addTerminalMessage(`Excavation Volume: ${safeToInteger(safeStats.volume_m3)} m³`);
 
 	let html = `
-        <div style="background: white; padding: 25px; border-radius: 15px; margin: 20px 0; box-shadow: 0 4px 20px rgba(0,0,0,0.1); border: 2px solid #16a085;">
-            <h3 style="color: #2c3e50; margin-bottom: 20px; text-align: center; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px;">
-                🏔️ Depth Finder Analysis Complete
-            </h3>
-            
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px;">
-                <div style="background: linear-gradient(135deg, #2ecc71, #28b463); padding: 20px; border-radius: 12px; color: white; text-align: center; box-shadow: 0 4px 15px rgba(46, 204, 113, 0.3);">
-                    <strong style="font-size: 14px;">📏 MAX DEPTH</strong><br>
-                    <span style="font-size: 32px; font-weight: bold;">${safeToFixed(safeStats.max_depth)}m</span>
-                    <div style="font-size: 12px; opacity: 0.9;">Range: ${safeToFixed(depthRange)}m</div>
-                </div>
-                <div style="background: linear-gradient(135deg, #1abc9c, #16a085); padding: 20px; border-radius: 12px; color: white; text-align: center; box-shadow: 0 4px 15px rgba(26, 188, 156, 0.3);">
-                    <strong style="font-size: 14px;">📊 AVG DEPTH</strong><br>
-                    <span style="font-size: 32px; font-weight: bold;">${safeToFixed(safeStats.mean_depth)}m</span>
-                    <div style="font-size: 12px; opacity: 0.9;">Median: ${safeToFixed(safeStats.median_depth)}m</div>
-                </div>
-            </div>
-            
-            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #3498db;">
-                <h4 style="margin-top: 0; color: #2c3e50;">📈 Real Terrain Analysis</h4>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 14px;">
-                    <div><strong>🔼 Original Ground:</strong> ${safeToFixed(safeStats.original_surface_elevation)}m</div>
-                    <div><strong>🔽 Quarry Bottom:</strong> ${safeToFixed(safeStats.quarry_bottom_elevation)}m</div>
-                    <div><strong>📊 Depth Range:</strong> ${safeToFixed(safeStats.min_depth)}m - ${safeToFixed(safeStats.max_depth)}m</div>
-                    <div><strong>🛰️ Data Points:</strong> ${safeStats.quarry_pixels} pixels analyzed</div>
-                </div>
-            </div>
+		<div style="background: white; padding: 25px; border-radius: 15px; margin: 20px 0; box-shadow: 0 4px 20px rgba(0,0,0,0.1); border: 2px solid #16a085;">
+			<h3 style="color: #2c3e50; margin-bottom: 20px; text-align: center; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px;">
+				🏔️ Depth Finder Analysis Complete
+			</h3>
+			
+			<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px;">
+				<div style="background: linear-gradient(135deg, #2ecc71, #28b463); padding: 20px; border-radius: 12px; color: white; text-align: center; box-shadow: 0 4px 15px rgba(46, 204, 113, 0.3);">
+					<strong style="font-size: 14px;">📏 MAX DEPTH</strong><br>
+					<span style="font-size: 32px; font-weight: bold;">${safeToFixed(safeStats.max_depth)}m</span>
+					<div style="font-size: 12px; opacity: 0.9;">Range: ${safeToFixed(depthRange)}m</div>
+				</div>
+				<div style="background: linear-gradient(135deg, #1abc9c, #16a085); padding: 20px; border-radius: 12px; color: white; text-align: center; box-shadow: 0 4px 15px rgba(26, 188, 156, 0.3);">
+					<strong style="font-size: 14px;">📊 AVG DEPTH</strong><br>
+					<span style="font-size: 32px; font-weight: bold;">${safeToFixed(safeStats.mean_depth)}m</span>
+					<div style="font-size: 12px; opacity: 0.9;">Median: ${safeToFixed(safeStats.median_depth)}m</div>
+				</div>
+			</div>
+			
+			<div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #3498db;">
+				<h4 style="margin-top: 0; color: #2c3e50;">📈 Real Terrain Analysis</h4>
+				<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 14px;">
+					<div><strong>🔼 Original Ground:</strong> ${safeToFixed(safeStats.original_surface_elevation)}m</div>
+					<div><strong>🔽 Quarry Bottom:</strong> ${safeToFixed(safeStats.quarry_bottom_elevation)}m</div>
+					<div><strong>📊 Depth Range:</strong> ${safeToFixed(safeStats.min_depth)}m - ${safeToFixed(safeStats.max_depth)}m</div>
+					<div><strong>🛰️ Data Points:</strong> ${safeStats.quarry_pixels} pixels analyzed</div>
+				</div>
+			</div>
 
-            <div style="background: #e8f4fd; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #2ecc71;">
-                <h4 style="margin-top: 0; color: #2c3e50;">📊 Volume & Area Analysis</h4>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 14px;">
-                    <div><strong>📐 Total Area:</strong> ${safeToInteger(safeStats.total_area_m2)} m²</div>
+			<div style="background: #e8f4fd; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #2ecc71;">
+				<h4 style="margin-top: 0; color: #2c3e50;">📊 Volume & Area Analysis</h4>
+				<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 14px;">
+					<div><strong>📐 Total Area:</strong> ${safeToInteger(safeStats.total_area_m2)} m²</div>
 					<div><strong>⛰️ Excavation Volume:</strong> ${safeToInteger(safeStats.volume_m3)} m³</div>
 					<div><strong>🎯 Surface (Gradient Descent):</strong> ${safeToFixed(safeStats.surface_gradient_descent)}m</div>
 					<div><strong>🏔️ Surface (Original):</strong> ${safeToFixed(safeStats.surface_original_method)}m</div>
-                </div>
-            </div>
-        </div>
-    `;
+				</div>
+			</div>
+		</div>
+	`;
 
 	showAnalysisResults(html);
 
@@ -422,6 +422,7 @@ function displayDepthResults(stats, visualizationPath) {
 		}, 1500);
 	}
 }
+
 // ✅ UPDATED: Fallback results when analysis fails
 function displayFallbackResults() {
 	const fallbackStats = {
@@ -532,7 +533,7 @@ map.on(L.Draw.Event.CREATED, function (e) {
 		addTerminalMessage(`Bounding box: ${bbox.minLat.toFixed(4)}°N to ${bbox.maxLat.toFixed(4)}°N, ${bbox.minLng.toFixed(4)}°E to ${bbox.maxLng.toFixed(4)}°E`);
 
 		const dataToSend = {
-			dem: "COP",
+			dem: "OneMeterDem",
 			coords: coords,
 			bbox: bbox,
 			reference_point: { lat: refLat, lng: refLng }
@@ -573,7 +574,7 @@ function displayBoundary(coords) {
 	var bbox = getBoundingBox(coords);
 
 	const dataToSend = {
-		dem: "COP",
+		dem: "OneMeterDem",
 		coords: coords,
 		bbox: bbox
 	};
