@@ -1,5 +1,6 @@
 # [file name]: routes.py
 import os
+import time
 from datetime import datetime
 
 import matplotlib
@@ -11,6 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from flask import (Blueprint, flash, jsonify, redirect, render_template,
                    request, url_for)
+from werkzeug.utils import secure_filename
 
 from extraFunctions import crop_dem, download_dem, visualization
 
@@ -20,6 +22,11 @@ def callRoutes(app, mongo):
 
     @routes.route("/")
     def home():
+        return render_template("home.html")
+
+
+    @routes.route("/ThirtyMeterDem")
+    def ThirtyMeterDem():
         boundaries = mongo.db.Boundaries.find({"userId": 1})
         coords = []
         sitename = []
@@ -28,7 +35,8 @@ def callRoutes(app, mongo):
             coords.append(i["coords"])
             sitename.append(i["sitename"])
 
-        return render_template("index.html", coords=coords, sitename=sitename)
+        return render_template("index2.html", coords=coords, sitename=sitename)
+
 
     @routes.route("/usgsdem")
     def usgsdem():
@@ -246,12 +254,83 @@ def callRoutes(app, mongo):
         
         return float(final_depth)
 
+    
+    @routes.route("/api/upload_dem", methods=["POST"])
+    def upload_dem():
+        """
+        1. Receives a custom .tif file from the user (Drone/Pix4D data)
+        2. Saves it locally
+        3. Runs depth analysis immediately
+        4. Returns the stats and the heatmap image URL
+        """
+        try:
+            # 1. Validation: Did they send a file?
+            if 'file' not in request.files:
+                return jsonify({"status": "error", "message": "No file part"}), 400
+            
+            file = request.files['file']
+            
+            if file.filename == '':
+                return jsonify({"status": "error", "message": "No selected file"}), 400
+            
+            # 2. Validation: Is it a TIF?
+            if file and (file.filename.lower().endswith('.tif') or file.filename.lower().endswith('.tiff')):
+                
+                # Create uploads directory if it doesn't exist
+                upload_folder = "uploads"
+                os.makedirs(upload_folder, exist_ok=True)
+                
+                # Save the file securely
+                filename = secure_filename(file.filename)
+                timestamp = int(time.time())
+                save_path = os.path.join(upload_folder, f"{timestamp}_{filename}")
+                file.save(save_path)
+                
+                print(f"✅ File uploaded: {save_path}")
+
+                # 3. Run Analysis 
+                # Import inside to avoid circular dependency
+                from depth_analysis import (calculate_quarry_depth,
+                                            generate_depth_visualization)
+
+                # Check for optional reference point
+                ref_lat = request.form.get('ref_lat')
+                ref_lng = request.form.get('ref_lng')
+                reference_point = None
+                
+                if ref_lat and ref_lng:
+                    try:
+                        reference_point = {'lat': float(ref_lat), 'lng': float(ref_lng)}
+                    except:
+                        pass # Ignore invalid coords
+
+                # Calculate Depth
+                depth_data, stats, transform, crs = calculate_quarry_depth(save_path, reference_point)
+                
+                # 4. Generate Visualization (Heatmap)
+                viz_filename = f"heatmap_{timestamp}.png"
+                viz_folder = os.path.join("static", "Figure")
+                os.makedirs(viz_folder, exist_ok=True)
+                
+                viz_path = os.path.join(viz_folder, viz_filename)
+                
+                # Generate the heatmap
+                generate_depth_visualization(depth_data, viz_path)
+                
+                # 5. Return JSON Result
+                return jsonify({
+                    "status": "success",
+                    "message": "Analysis Complete",
+                    "depth_stats": stats,
+                    "heatmap_url": url_for('static', filename=f'Figure/{viz_filename}'),
+                    "filename": filename
+                })
+            
+            else:
+                return jsonify({"status": "error", "message": "Invalid file type. Only .tif allowed"}), 400
+
+        except Exception as e:
+            print(f"❌ Upload Error: {e}")
+            return jsonify({"status": "error", "message": str(e)}), 500
+
     return routes 
-    @routes.route('/api/test')
-    def test_api():
-        """Simple test endpoint to check if API is working"""
-        return jsonify({
-            'success': True,
-            'message': 'API is working!',
-            'timestamp': datetime.now().isoformat()
-        }) # ✅ This should be at the same level as def callRoutes

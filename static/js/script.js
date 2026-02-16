@@ -625,3 +625,268 @@ function updateResultsDisplay(stats) {
 		}
 	});
 }
+
+// [Add to static/js/script.js]
+
+// 1. Create a custom Leaflet Control for the "Scanner"
+L.Control.QuarryScanner = L.Control.extend({
+	options: {
+		position: 'topleft' // Places it near the zoom controls
+	},
+
+	onAdd: function (map) {
+		var container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+		container.style.backgroundColor = 'white';
+		container.style.padding = '5px';
+		container.style.cursor = 'pointer';
+		container.title = "Scan for Quarries in this area";
+
+		// Add an icon and text
+		container.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 5px; padding: 0 5px;">
+                <span style="font-size: 18px;">⛏️</span>
+                <span style="font-weight: bold; color: #2c3e50;">Find Quarries</span>
+            </div>
+        `;
+
+		// Click event to trigger the scan
+		container.onclick = function () {
+			scanForQuarries();
+		};
+
+		return container;
+	}
+});
+
+// 2. Add the control to the map
+map.addControl(new L.Control.QuarryScanner());
+
+// 3. The Function to Find Quarries (Using Overpass API)
+function scanForQuarries() {
+	// Get current map bounds
+	var bounds = map.getBounds();
+	var bbox = `${bounds.getSouth()},${bounds.getWest()},${bounds.getNorth()},${bounds.getEast()}`;
+
+	showAnalysisResults("⏳ Scanning satellite data for quarry sites...");
+
+	// This query asks OpenStreetMap for any node/way/relation tagged as "quarry"
+	var query = `
+        [out:json][timeout:25];
+        (
+          node["landuse"="quarry"](${bbox});
+          way["landuse"="quarry"](${bbox});
+          relation["landuse"="quarry"](${bbox});
+        );
+        out center;
+    `;
+
+	var url = "https://overpass-api.de/api/interpreter?data=" + encodeURIComponent(query);
+
+	fetch(url)
+		.then(response => response.json())
+		.then(data => {
+			console.log("Quarries found:", data);
+
+			if (data.elements.length === 0) {
+				alert("No quarries found in this specific map view. Try moving the map!");
+				return;
+			}
+
+			// Group to hold the results
+			var quarryGroup = L.featureGroup().addTo(map);
+
+			data.elements.forEach(element => {
+				var lat, lon;
+
+				// Get center coordinates
+				if (element.type === "node") {
+					lat = element.lat;
+					lon = element.lon;
+				} else {
+					lat = element.center.lat;
+					lon = element.center.lon;
+				}
+
+				// Get company name if available (Operator tag)
+				var companyName = element.tags.operator || element.tags.name || "Unnamed Quarry";
+
+				// Add a marker
+				L.marker([lat, lon])
+					.bindPopup(`<b>${companyName}</b><br>Type: ${element.tags.landuse}<br><button onclick="map.flyTo([${lat}, ${lon}], 16)">Analyze This</button>`)
+					.addTo(quarryGroup);
+			});
+
+			// Zoom to show all found quarries
+			map.fitBounds(quarryGroup.getBounds());
+			showAnalysisResults(`✅ Found ${data.elements.length} quarry sites in this area!`);
+		})
+		.catch(err => {
+			console.error(err);
+			alert("Error scanning for quarries.");
+		});
+}
+
+/* ==========================================
+   APPEND THIS TO THE BOTTOM OF script.js
+   Handles: Drone Data Upload & Analysis
+   ========================================== */
+
+document.addEventListener('DOMContentLoaded', function () {
+
+	// 1. Get Elements (These are from the new sidebar HTML)
+	const fileInput = document.getElementById('file-input');
+	const dropZone = document.getElementById('drop-zone');
+	const processBtn = document.getElementById('process-btn');
+	const fileNameDisplay = document.getElementById('file-name-display');
+	const opacitySlider = document.getElementById('opacity-slider');
+
+	// Safety Check: If these elements don't exist (e.g. old HTML), stop here
+	if (!fileInput || !dropZone || !processBtn) {
+		console.log("Upload panel elements not found. Skipping upload logic.");
+		return;
+	}
+
+	let selectedFile = null;
+
+	// 2. Handle File Selection (Browse Button)
+	fileInput.addEventListener('change', function (e) {
+		if (e.target.files.length > 0) {
+			handleFileSelect(e.target.files[0]);
+		}
+	});
+
+	// 3. Handle Drag & Drop
+	dropZone.addEventListener('dragover', (e) => {
+		e.preventDefault();
+		dropZone.style.borderColor = '#16a085';
+		dropZone.style.backgroundColor = 'rgba(22, 160, 133, 0.05)';
+	});
+
+	dropZone.addEventListener('dragleave', (e) => {
+		e.preventDefault();
+		dropZone.style.borderColor = '#d0ddee'; // Reset color
+		dropZone.style.backgroundColor = 'transparent';
+	});
+
+	dropZone.addEventListener('drop', (e) => {
+		e.preventDefault();
+		dropZone.style.borderColor = '#d0ddee';
+		dropZone.style.backgroundColor = 'transparent';
+
+		if (e.dataTransfer.files.length > 0) {
+			handleFileSelect(e.dataTransfer.files[0]);
+		}
+	});
+
+	// Helper: Update UI when file is chosen
+	function handleFileSelect(file) {
+		if (!file.name.toLowerCase().endsWith('.tif') && !file.name.toLowerCase().endsWith('.tiff')) {
+			alert("Only .tif files are allowed!");
+			return;
+		}
+
+		selectedFile = file;
+		fileNameDisplay.innerText = `📄 ${file.name}`;
+
+		// Enable Buttons
+		processBtn.disabled = false;
+		processBtn.classList.add('active'); // Add teal color via CSS
+		if (opacitySlider) opacitySlider.disabled = false;
+
+		appendLog(`File selected: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+	}
+
+	// 4. THE TRIGGER: Click "Process" -> Call the Function
+	processBtn.addEventListener('click', function () {
+		if (selectedFile) {
+			uploadAndAnalyze(selectedFile);
+		}
+	});
+
+	// 5. Upload & Analyze Logic
+	async function uploadAndAnalyze(file) {
+		// A. UI Updates
+		processBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+		processBtn.disabled = true;
+		appendLog("🚀 Starting upload & analysis...");
+
+		// B. Prepare Data
+		const formData = new FormData();
+		formData.append('file', file);
+
+		try {
+			// C. Send to Backend
+			const response = await fetch('/api/upload_dem', {
+				method: 'POST',
+				body: formData
+			});
+
+			const data = await response.json();
+
+			if (data.status === 'success') {
+				appendLog("✅ Analysis Complete!");
+
+				// D. Update Stats (Metric Cards)
+				// We use generic IDs so this works with the new layout
+				if (document.getElementById('metric-volume'))
+					document.getElementById('metric-volume').innerText = formatNumber(data.depth_stats.volume_m3) + ' m³';
+				if (document.getElementById('metric-depth'))
+					document.getElementById('metric-depth').innerText = data.depth_stats.max_depth.toFixed(2) + ' m';
+				if (document.getElementById('metric-area'))
+					document.getElementById('metric-area').innerText = (data.depth_stats.total_area_m2 / 10000).toFixed(2) + ' ha';
+				if (document.getElementById('metric-elev'))
+					document.getElementById('metric-elev').innerText = data.depth_stats.min_elevation.toFixed(1) + ' m';
+
+				// E. Show Heatmap
+				const imgContainer = document.getElementById('img_container');
+				if (imgContainer) {
+					imgContainer.innerHTML = `
+                        <div class="zoom-container">
+                            <img src="${data.heatmap_url}" alt="Quarry Heatmap" style="width:100%; border-radius:12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                            <span class="zoom-hint">Analysis of ${data.filename}</span>
+                        </div>
+                    `;
+				}
+
+				processBtn.innerHTML = '<i class="fas fa-check"></i> Done';
+
+				// Reset button after 3 seconds so they can run another file
+				setTimeout(() => {
+					processBtn.innerHTML = '<i class="fas fa-microchip"></i> Process & Analyze';
+					processBtn.disabled = false;
+				}, 3000);
+
+			} else {
+				appendLog(`❌ Error: ${data.message}`);
+				processBtn.innerHTML = 'Retry';
+				processBtn.disabled = false;
+			}
+		} catch (error) {
+			console.error(error);
+			appendLog(`❌ Network Error: ${error.message}`);
+			processBtn.innerHTML = 'Retry';
+			processBtn.disabled = false;
+		}
+	}
+
+	// Helper: Safely append log messages without breaking existing logs
+	function appendLog(msg) {
+		const terminal = document.getElementById('terminal_output');
+		if (!terminal) return;
+
+		const time = new Date().toLocaleTimeString();
+		// Create new log line
+		const div = document.createElement('div');
+		div.className = 'terminal-message';
+		div.innerHTML = `<span class="terminal-timestamp">[${time}]</span> ${msg}`;
+
+		// Add to terminal
+		terminal.appendChild(div);
+		terminal.scrollTop = terminal.scrollHeight;
+	}
+
+	// Helper: Nice number formatting (e.g. 1,234,567)
+	function formatNumber(num) {
+		return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+	}
+});

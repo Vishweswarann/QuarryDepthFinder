@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>QuarryDepthFinder · Dashboard</title>
+
+	<!-- Leaflet CSS -->
+	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+		integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+	<!-- Leaflet Draw CSS -->
+	<link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+
+	<!-- MapTiler Geocoding -->
+	<link href="https://cdn.maptiler.com/maptiler-geocoding-control/v1.4.1/style.css" rel="stylesheet">
+
+	<!-- Font Awesome 6 (free) -->
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+	<!-- Google Fonts: Inter -->
+	<link
+		href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap"
+		rel="stylesheet">
+
+	<!-- Viewer.js for zoom (kept for future use) -->
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.6/viewer.min.css">
+	<style>
+		* {
+			margin: 0;
+			padding: 0;
+			box-sizing: border-box;
+		}
+
+		body {
+			font-family: 'Inter', sans-serif;
+			background-color: #ecf0f1;
+			color: #1e2b3a;
+			height: 100vh;
+			display: flex;
+			flex-direction: column;
+			overflow: hidden;
+		}
+
+		/* ---------- STICKY NAV (dark slate) ---------- */
+		.navbar {
+			background-color: #2c3e50;
+			padding: 0.8rem 2rem;
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			color: white;
+			box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+			flex-shrink: 0;
+			z-index: 1100;
+		}
+
+		.logo {
+			display: flex;
+			align-items: center;
+			gap: 0.6rem;
+			font-weight: 700;
+			font-size: 1.5rem;
+		}
+
+		.logo i {
+			color: #16a085;
+			font-size: 2rem;
+		}
+
+		.nav-links {
+			display: flex;
+			align-items: center;
+			gap: 2rem;
+		}
+
+		.nav-links a {
+			color: #ecf0f1;
+			text-decoration: none;
+			font-weight: 500;
+			transition: color 0.2s;
+		}
+
+		.nav-links a:hover {
+			color: #16a085;
+		}
+
+		.nav-btn-active {
+			background-color: #16a085;
+			color: white !important;
+			padding: 0.5rem 1.5rem;
+			border-radius: 40px;
+			font-weight: 600;
+			box-shadow: 0 6px 12px rgba(22, 160, 133, 0.3);
+		}
+
+		.nav-btn-active:hover {
+			background-color: #117a65;
+			color: white !important;
+		}
+
+		/* ---------- MAIN LAYOUT ---------- */
+		.workspace {
+			display: flex;
+			flex: 1;
+			overflow: hidden;
+			position: relative;
+		}
+
+		/* ----- LEFT DRAWER (collapsible) ----- */
+		.drawer {
+			width: 280px;
+			background-color: white;
+			border-right: 1px solid #d0ddee;
+			display: flex;
+			flex-direction: column;
+			transition: width 0.25s ease, margin 0.25s ease;
+			box-shadow: 2px 0 12px rgba(0, 0, 0, 0.02);
+			z-index: 1000;
+			overflow: hidden;
+			flex-shrink: 0;
+		}
+
+		.drawer.collapsed {
+			width: 0;
+			margin-left: -280px;
+		}
+
+		.drawer-header {
+			padding: 1.5rem 1.2rem;
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			border-bottom: 1px solid #ecf0f1;
+		}
+
+		.drawer-header h3 {
+			font-size: 1.2rem;
+			font-weight: 600;
+			color: #2c3e50;
+			display: flex;
+			align-items: center;
+			gap: 0.5rem;
+		}
+
+		.drawer-header i {
+			color: #16a085;
+		}
+
+		.toggle-drawer {
+			background: none;
+			border: none;
+			color: #7f8c8d;
+			cursor: pointer;
+			font-size: 1.2rem;
+			transition: color 0.2s;
+		}
+
+		.toggle-drawer:hover {
+			color: #16a085;
+		}
+
+		.saved-sites-list {
+			flex: 1;
+			overflow-y: auto;
+			padding: 1rem;
+		}
+
+		.site-item {
+			background: #f8f9fa;
+			border-radius: 14px;
+			padding: 1rem;
+			margin-bottom: 0.8rem;
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			border-left: 4px solid #b0c4de;
+			transition: all 0.2s;
+			cursor: pointer;
+			box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+		}
+
+		.site-item:hover {
+			transform: translateX(6px);
+			border-left-color: #16a085;
+			background: white;
+			box-shadow: 0 8px 18px rgba(0, 0, 0, 0.04);
+		}
+
+		.site-info h4 {
+			font-size: 1rem;
+			font-weight: 600;
+			margin-bottom: 0.2rem;
+			color: #1e2b3a;
+		}
+
+		.site-info p {
+			font-size: 0.8rem;
+			color: #7f8c8d;
+		}
+
+		.load-btn {
+			background: white;
+			border: 1px solid #d0ddee;
+			border-radius: 30px;
+			padding: 0.3rem 1rem;
+			font-size: 0.8rem;
+			font-weight: 500;
+			color: #2c3e50;
+			transition: all 0.2s;
+		}
+
+		.load-btn:hover {
+			background: #16a085;
+			border-color: #16a085;
+			color: white;
+		}
+
+		/* ----- CENTER MAP AREA ----- */
+		.map-area {
+			flex: 1;
+			position: relative;
+			background: #d4e0e5;
+			overflow: hidden;
+		}
+
+		#map {
+			height: 100%;
+			width: 100%;
+			z-index: 1;
+			border-radius: 0;
+		}
+
+		/* custom map controls: search bar (glass) */
+		.map-search {
+			position: absolute;
+			top: 20px;
+			left: 24px;
+			z-index: 1000;
+			background: rgba(255, 255, 255, 0.8);
+			backdrop-filter: blur(8px);
+			border-radius: 50px;
+			box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+			width: 300px;
+			border: 1px solid rgba(255, 255, 255, 0.5);
+			overflow: hidden;
+		}
+
+		.map-search .maptiler-geocoder-control {
+			border: none;
+			background: transparent;
+			box-shadow: none;
+		}
+
+		/* leaflet draw toolbar — restyle to floating right vertical */
+		.leaflet-draw.leaflet-control {
+			position: absolute;
+			top: 130px;
+			left: auto !important;
+			z-index: 1000;
+			background: transparent;
+			border: none;
+			box-shadow: none;
+		}
+
+		.leaflet-touch .leaflet-draw-toolbar .leaflet-draw-draw-circlemarker {
+			display: none;
+		}
+
+		.leaflet-draw .leaflet-draw-toolbar {
+			display: flex;
+			flex-direction: column;
+			gap: 10px;
+			background: transparent;
+		}
+
+		.leaflet-draw .leaflet-draw-toolbar a {
+			width: 52px;
+			height: 52px;
+			border-radius: 50% !important;
+			background: white;
+			box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			border: 1px solid #e0e7ef;
+			background-image: none !important;
+			transition: transform 0.2s, box-shadow 0.2s;
+			margin: 0 !important;
+		}
+
+		.leaflet-draw .leaflet-draw-toolbar a:hover {
+			transform: translateY(-3px);
+			box-shadow: 0 12px 28px rgba(22, 160, 133, 0.3);
+			border-color: #16a085;
+		}
+
+		/* replace with font-awesome icons */
+		.leaflet-draw .leaflet-draw-toolbar .leaflet-draw-draw-polygon:after {
+			font-family: "Font Awesome 6 Free";
+			content: "\f6fc";
+			font-weight: 900;
+			color: #2c3e50;
+			font-size: 1.3rem;
+		}
+
+		.leaflet-draw .leaflet-draw-toolbar .leaflet-draw-draw-marker:after {
+			font-family: "Font Awesome 6 Free";
+			content: "\f3c5";
+			font-weight: 900;
+			color: #2c3e50;
+			font-size: 1.3rem;
+		}
+
+		.leaflet-draw .leaflet-draw-toolbar .leaflet-draw-edit-edit,
+		.leaflet-draw .leaflet-draw-toolbar .leaflet-draw-edit-remove {
+			display: none;
+		}
+
+		.leaflet-draw .leaflet-draw-toolbar .leaflet-draw-edit-remove {
+			display: none;
+		}
+
+		.custom-clear-btn {
+			width: 52px;
+			height: 52px;
+			border-radius: 50%;
+			background: white;
+			box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			border: 1px solid #e0e7ef;
+			color: #2c3e50;
+			font-size: 1.3rem;
+			cursor: pointer;
+			transition: all 0.2s;
+		}
+
+		.custom-clear-btn:hover {
+			transform: translateY(-3px);
+			box-shadow: 0 12px 28px rgba(22, 160, 133, 0.3);
+			border-color: #16a085;
+			color: #16a085;
+		}
+
+		/* ----- RIGHT PANEL (Data Source Manager) ----- */
+		.intel-panel {
+			width: 340px;
+			background-color: white;
+			border-left: 1px solid #d0ddee;
+			display: flex;
+			flex-direction: column;
+			box-shadow: -4px 0 12px rgba(0, 0, 0, 0.02);
+			z-index: 1000;
+			flex-shrink: 0;
+			overflow-y: auto;
+		}
+
+		.panel-header {
+			padding: 1.5rem 1.2rem 0.8rem 1.2rem;
+		}
+
+		.panel-header h2 {
+			font-size: 1.3rem;
+			font-weight: 600;
+			display: flex;
+			align-items: center;
+			gap: 0.5rem;
+			color: #2c3e50;
+		}
+
+		.status-badge {
+			display: flex;
+			align-items: center;
+			gap: 0.5rem;
+			margin-top: 0.3rem;
+			font-size: 0.9rem;
+			color: #7f8c8d;
+			/* muted waiting state */
+		}
+
+		.status-dot {
+			width: 10px;
+			height: 10px;
+			border-radius: 50%;
+			background: #95a5a6;
+			/* grey for waiting */
+			box-shadow: none;
+			animation: none;
+		}
+
+		/* ----- UPLOAD ZONE (dashed) ----- */
+		.upload-zone {
+			margin: 1rem 1.2rem;
+			border: 2px dashed #aab7c4;
+			border-radius: 24px;
+			background: #f9fbfd;
+			padding: 2rem 1rem;
+			text-align: center;
+			transition: background 0.2s, border-color 0.2s;
+			cursor: pointer;
+		}
+
+		.upload-zone:hover {
+			background: #eef2f6;
+			border-color: #16a085;
+		}
+
+		.upload-zone i {
+			font-size: 3rem;
+			color: #16a085;
+			margin-bottom: 0.8rem;
+		}
+
+		.upload-zone .primary-text {
+			font-weight: 600;
+			font-size: 1.1rem;
+			color: #2c3e50;
+		}
+
+		.upload-zone .subtext {
+			font-size: 0.8rem;
+			color: #7f8c8d;
+			margin: 0.5rem 0 1.2rem;
+		}
+
+		.browse-btn {
+			background: white;
+			border: 1px solid #16a085;
+			border-radius: 40px;
+			padding: 0.5rem 1.5rem;
+			font-weight: 500;
+			color: #16a085;
+			transition: all 0.2s;
+			display: inline-block;
+			font-size: 0.9rem;
+			cursor: pointer;
+		}
+
+		.browse-btn:hover {
+			background: #16a085;
+			color: white;
+		}
+
+		/* layer settings */
+		.layer-settings {
+			margin: 0 1.2rem 1.5rem 1.2rem;
+			padding: 1rem 0;
+			border-top: 1px solid #ecf0f1;
+		}
+
+		.setting-row {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			margin-bottom: 1.2rem;
+		}
+
+		.setting-label {
+			font-weight: 500;
+			color: #2c3e50;
+			display: flex;
+			align-items: center;
+			gap: 0.5rem;
+		}
+
+		.toggle-switch {
+			position: relative;
+			width: 44px;
+			height: 24px;
+			background: #b0c4de;
+			border-radius: 40px;
+			transition: background 0.2s;
+			cursor: pointer;
+		}
+
+		.toggle-switch.disabled {
+			opacity: 0.5;
+			pointer-events: none;
+		}
+
+		.toggle-switch:before {
+			content: '';
+			position: absolute;
+			width: 20px;
+			height: 20px;
+			background: white;
+			border-radius: 50%;
+			top: 2px;
+			left: 2px;
+			transition: transform 0.2s;
+		}
+
+		.toggle-switch.active {
+			background: #16a085;
+		}
+
+		.toggle-switch.active:before {
+			transform: translateX(20px);
+		}
+
+		.slider-row {
+			margin-bottom: 1rem;
+		}
+
+		.slider-label {
+			display: flex;
+			justify-content: space-between;
+			font-size: 0.9rem;
+			color: #3a4b5e;
+			margin-bottom: 0.3rem;
+		}
+
+		input[type=range] {
+			width: 100%;
+			accent-color: #16a085;
+		}
+
+		.resolution-badge {
+			background: #ecf0f1;
+			border-radius: 30px;
+			padding: 0.4rem 1rem;
+			font-size: 0.8rem;
+			color: #2c3e50;
+			display: inline-flex;
+			align-items: center;
+			gap: 0.4rem;
+		}
+
+		.resolution-badge i {
+			color: #16a085;
+		}
+
+		/* process button */
+		.process-btn {
+			display: block;
+			width: calc(100% - 2.4rem);
+			margin: 0.5rem 1.2rem 1rem;
+			background: #d0ddee;
+			/* disabled grey */
+			border: none;
+			border-radius: 60px;
+			padding: 0.9rem;
+			font-weight: 600;
+			font-size: 1rem;
+			color: #8a9bb5;
+			cursor: not-allowed;
+			transition: all 0.2s;
+			border: 1px solid transparent;
+		}
+
+		.process-btn.active {
+			background: #16a085;
+			color: white;
+			cursor: pointer;
+			box-shadow: 0 8px 18px rgba(22, 160, 133, 0.2);
+		}
+
+		.process-btn.active:hover {
+			background: #117a65;
+			transform: translateY(-2px);
+		}
+
+		/* terminal inside right panel */
+		.terminal-container {
+			background: #1e1e1e;
+			color: #00ff00;
+			font-family: 'Courier New', monospace;
+			font-size: 0.8rem;
+			border-radius: 16px;
+			margin: 0.5rem 1.2rem 1.5rem 1.2rem;
+			padding: 1rem;
+			max-height: 180px;
+			overflow-y: auto;
+			border: 1px solid #333;
+		}
+
+		.terminal-header {
+			color: #cccccc;
+			margin-bottom: 8px;
+			font-weight: 600;
+			border-bottom: 1px solid #16a085;
+			padding-bottom: 5px;
+		}
+
+		.terminal-message {
+			margin: 6px 0;
+			border-left: 2px solid #16a085;
+			padding-left: 8px;
+		}
+
+		.terminal-timestamp {
+			color: #888;
+			font-size: 0.7rem;
+		}
+
+		/* bottom results container (unchanged) */
+		.results-global {
+			background: white;
+			border-radius: 24px 24px 0 0;
+			box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.04);
+			padding: 1.8rem 2rem;
+			margin: 1rem 1.5rem 0 1.5rem;
+			border: 1px solid #eef2f6;
+			flex-shrink: 0;
+			display: flex;
+			flex-direction: column;
+			gap: 1rem;
+		}
+
+		.results-header {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+		}
+
+		.results-header h3 {
+			font-weight: 600;
+			font-size: 1.2rem;
+		}
+
+		.download-btn {
+			background: none;
+			border: 1px solid #d0ddee;
+			border-radius: 40px;
+			padding: 0.4rem 1.2rem;
+			font-weight: 500;
+			color: #2c3e50;
+			transition: all 0.2s;
+		}
+
+		.download-btn:hover {
+			background: #16a085;
+			border-color: #16a085;
+			color: white;
+		}
+
+		.img-preview {
+			display: flex;
+			gap: 20px;
+			align-items: center;
+			flex-wrap: wrap;
+			min-height: 120px;
+		}
+
+		.heatmap-placeholder {
+			background: #f0f4f8;
+			border-radius: 16px;
+			padding: 2rem;
+			text-align: center;
+			color: #7f8c8d;
+			width: 100%;
+			border: 2px dashed #b0c4de;
+			font-style: italic;
+		}
+
+		.heatmap-placeholder i {
+			color: #16a085;
+			margin-right: 8px;
+		}
+
+		/* misc */
+		.skeleton {
+			background: linear-gradient(90deg, #f0f2f5 25%, #e0e4e9 50%, #f0f2f5 75%);
+			background-size: 200% 100%;
+			animation: shimmer 1.5s infinite;
+			border-radius: 8px;
+			height: 40px;
+			width: 100%;
+		}
+
+		@keyframes shimmer {
+			0% {
+				background-position: 200% 0;
+			}
+
+			100% {
+				background-position: -200% 0;
+			}
+		}
+
+		.toast-message {
+			position: fixed;
+			top: 90px;
+			left: 50%;
+			transform: translateX(-50%);
+			background: #e74c3c;
+			color: white;
+			padding: 12px 24px;
+			border-radius: 60px;
+			box-shadow: 0 12px 28px rgba(0, 0, 0, 0.2);
+			z-index: 2000;
+			font-weight: 500;
+			display: none;
+			align-items: center;
+			gap: 12px;
+		}
+
+		.toast-message.show {
+			display: flex;
+		}
+
+		#analysis_results {
+			color: #2c3e50;
+		}
+
+		/* Upload Zone Styles */
+		.upload-zone {
+			border: 2px dashed #aab7c4;
+			border-radius: 12px;
+			padding: 2rem 1rem;
+			text-align: center;
+			margin: 1rem;
+			transition: all 0.2s;
+			background: #f8f9fa;
+		}
+
+		.upload-icon {
+			font-size: 2.5rem;
+			color: #aab7c4;
+			margin-bottom: 0.5rem;
+		}
+
+		.upload-text {
+			font-weight: 600;
+			color: #2c3e50;
+			margin-bottom: 0.2rem;
+		}
+
+		.upload-subtext {
+			font-size: 0.75rem;
+			color: #95a5a6;
+			margin-bottom: 1rem;
+		}
+
+		.browse-btn {
+			background: white;
+			border: 1px solid #d0ddee;
+			padding: 0.4rem 1rem;
+			border-radius: 6px;
+			cursor: pointer;
+			font-weight: 500;
+			color: #2c3e50;
+		}
+
+		.browse-btn:hover {
+			border-color: #16a085;
+			color: #16a085;
+		}
+
+		.file-selected-text {
+			margin-top: 10px;
+			font-size: 0.85rem;
+			color: #16a085;
+			font-weight: 600;
+		}
+
+		/* Process Button */
+		.process-btn {
+			width: 90%;
+			margin: 0 auto;
+			display: block;
+			padding: 0.8rem;
+			background: #bdc3c7;
+			/* Disabled grey */
+			color: white;
+			border: none;
+			border-radius: 8px;
+			font-size: 1rem;
+			font-weight: 600;
+			cursor: not-allowed;
+			transition: all 0.3s;
+		}
+
+		.process-btn.active {
+			background: #16a085;
+			/* Teal when active */
+			cursor: pointer;
+			box-shadow: 0 4px 12px rgba(22, 160, 133, 0.3);
+		}
+
+		.process-btn.active:hover {
+			background: #117a65;
+			transform: translateY(-2px);
+		}
+
+		.back-btn {
+			background: none;
+			border: 1px solid #d0ddee;
+			border-radius: 40px;
+			padding: 0.4rem 1.2rem;
+			font-weight: 500;
+			color: #2c3e50;
+			transition: all 0.2s;
+		}
+
+		.back-btn:hover {
+			background: #16a085;
+			border-color: #16a085;
+			color: white;
+		}
+	</style>
+</head>
+
+<body>
+
+	<!-- STICKY NAVIGATION (dark slate) -->
+	<nav class="navbar">
+		<div class="logo">
+			<i class="fas fa-mountain"></i> QuarryDepthFinder
+		</div>
+		<div class="nav-links">
+			<a href="{{url_for('routes.home')}}">Home</a>
+			<a href="#">About</a>
+			<a href="#">Profile</a>
+			<a href="{{url_for('routes.ThirtyMeterDem')}}" class="nav-btn-active"><i class="fas fa-calculator"></i>
+				Calculate</a>
+		</div>
+	</nav>
+
+	<!-- TOAST CONTAINER (error messages) -->
+	<div id="toast" class="toast-message">
+		<i class="fas fa-exclamation-triangle"></i>
+		<span id="toast-text">Polygon not closed properly</span>
+	</div>
+
+	<!-- MAIN WORKSPACE -->
+	<div class="workspace">
+
+		<!-- LEFT DRAWER (collapsible) -->
+		<div class="drawer" id="drawer">
+			<div class="drawer-header">
+				<h3><i class="fas fa-folder-open"></i> Saved sites</h3>
+				<button class="toggle-drawer" id="toggleDrawerBtn"><i class="fas fa-chevron-left"></i></button>
+			</div>
+			<div class="saved-sites-list">
+				<!-- dynamic items will be injected by Flask / JS; static examples for design -->
+				<div class="site-item">
+					<div class="site-info">
+						<h4>North Quarry</h4>
+						<p><i class="far fa-calendar"></i> 2026-02-10</p>
+					</div>
+					<button class="load-btn">Load</button>
+				</div>
+				<div class="site-item">
+					<div class="site-info">
+						<h4>Ridge Pit</h4>
+						<p><i class="far fa-calendar"></i> 2026-02-14</p>
+					</div>
+					<button class="load-btn">Load</button>
+				</div>
+				<div class="site-item">
+					<div class="site-info">
+						<h4>West Basin</h4>
+						<p><i class="far fa-calendar"></i> 2026-02-12</p>
+					</div>
+					<button class="load-btn">Load</button>
+				</div>
+			</div>
+		</div>
+
+		<!-- MAP AREA with floating controls -->
+		<div class="map-area">
+			<div id="map"></div>
+
+			<!-- floating search bar (glass) -->
+			<div class="map-search" id="geocoding-container"></div>
+
+			<!-- custom draw controls will be automatically placed by Leaflet.draw; we also add a clear button -->
+			<div style="position: absolute; top: 200px; right: 20px; z-index:1000;" id="customClearWrapper">
+				<div class="custom-clear-btn" id="clearBtn" title="Clear all layers"><i class="fas fa-trash-alt"></i>
+				</div>
+			</div>
+		</div>
+
+		<!-- RIGHT PANEL (Data Source Manager) -->
+		<div class="intel-panel">
+			<div class="panel-header">
+				<h2><i class="fas fa-layer-group" style="color:#16a085;"></i> Data Source Manager</h2>
+				<div class="status-badge">
+					<span class="status-dot" id="system-status-dot"></span>
+					<span id="system-status-text">Waiting for input...</span>
+				</div>
+			</div>
+
+			<div class="upload-zone" id="drop-zone">
+				<div class="upload-content">
+					<i class="fas fa-cloud-upload-alt upload-icon"></i>
+					<div class="upload-text">Upload Orthomosaic / DEM</div>
+					<div class="upload-subtext">Supports .TIF, .TIFF, .GeoTIFF</div>
+					<input type="file" id="file-input" accept=".tif,.tiff" style="display: none;">
+					<button class="browse-btn" onclick="document.getElementById('file-input').click()">Browse
+						Files</button>
+				</div>
+				<div id="file-name-display" class="file-selected-text"></div>
+			</div>
+
+
+			<div class="action-area">
+				<button id="process-btn" class="process-btn" disabled>
+					<i class="fas fa-microchip"></i> Process & Analyze
+				</button>
+			</div>
+
+			<div id="terminal_output" class="terminal-container">
+				<div class="terminal-header">🖥️ SYSTEM LOG</div>
+				<div class="terminal-message">
+					<span class="terminal-timestamp">[System]</span> 📂 Ready for upload.
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- GLOBAL RESULTS CONTAINER (below map & panels) -->
+	<div class="results-global">
+		<div class="results-header">
+			<div style="display: flex; align-items: center; gap: 0.8rem;">
+					<a href="{{url_for('routes.ThirtyMeterDem')}}"><button class="back-btn" ><i class="fas fa-arrow-left"></i> Go
+					Back</button></a>
+				<h3><i class="fas fa-cube" style="color:#16a085;"></i> 3D View & Heatmap</h3>
+			</div>
+			<button class="download-btn"><i class="fas fa-download"></i> Download Report</button>
+		</div>
+		<div id="analysis_results" style="margin-bottom:0.5rem;">
+			<p style="color: #7f8c8d;"><i class="fas fa-info-circle"></i> Draw polygon to see detailed report.</p>
+		</div>
+		<div id="img_container" class="img-preview">
+			<div class="heatmap-placeholder">
+				<i class="fas fa-image"></i> No heatmap generated yet. Complete analysis to visualize.
+			</div>
+		</div>
+	</div>
+
+	<!-- Leaflet JS -->
+	<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+		integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+	<!-- Leaflet Draw JS -->
+	<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+	<!-- MapTiler Geocoding -->
+	<script src="https://cdn.maptiler.com/maptiler-geocoding-control/v1.4.1/leaflet.umd.js"></script>
+	<!-- Viewer JS (kept for future use) -->
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.6/viewer.min.js"></script>
+
+	<!-- Our original script (preserves functionality) -->
+	<script src="{{ url_for('static', filename='js/script.js') }}"></script>
+
+	<!-- UI interactions for new panel (demo file upload) -->
+	<script>
+		(function () {
+			// drawer toggle
+			const drawer = document.getElementById('drawer');
+			const toggleBtn = document.getElementById('toggleDrawerBtn');
+			toggleBtn.addEventListener('click', () => {
+				drawer.classList.toggle('collapsed');
+				const icon = toggleBtn.querySelector('i');
+				if (drawer.classList.contains('collapsed')) {
+					icon.classList.remove('fa-chevron-left');
+					icon.classList.add('fa-chevron-right');
+				} else {
+					icon.classList.remove('fa-chevron-right');
+					icon.classList.add('fa-chevron-left');
+				}
+			});
+
+			// custom clear button
+			document.getElementById('clearBtn').addEventListener('click', function () {
+				if (window.map) {
+					map.eachLayer((layer) => {
+						if (layer instanceof L.Polygon || layer instanceof L.Marker) {
+							map.removeLayer(layer);
+						}
+					});
+					const term = document.getElementById('terminal_output');
+					if (term) {
+						term.innerHTML = `<div class="terminal-header">🖥️ ANALYSIS LOG</div>
+            <div class="terminal-message"><span class="terminal-timestamp">[System]</span> 🧹 Cleared drawings.</div>`;
+					}
+				}
+			});
+
+			// File upload simulation
+			const fileInput = document.getElementById('fileInput');
+			const uploadZone = document.getElementById('uploadZone');
+			const toggle = document.getElementById('customDataToggle');
+			const opacitySlider = document.getElementById('opacitySlider');
+			const processBtn = document.getElementById('processBtn');
+			const resolutionSpan = document.getElementById('resolutionDisplay');
+			const statusText = document.getElementById('statusText');
+			const statusDot = document.querySelector('.status-dot');
+
+			// Click on zone triggers file input
+			uploadZone.addEventListener('click', (e) => {
+				if (e.target.tagName !== 'LABEL' && e.target.tagName !== 'I' && !e.target.classList.contains('browse-btn')) {
+					fileInput.click();
+				}
+			});
+
+			fileInput.addEventListener('change', function (e) {
+				if (fileInput.files.length > 0) {
+					const fileName = fileInput.files[0].name;
+					// Simulate detection
+					resolutionSpan.innerText = '5 cm/px';
+					// Enable toggle, slider, process button
+					toggle.classList.remove('disabled');
+					toggle.classList.add('active');
+					opacitySlider.disabled = false;
+					processBtn.disabled = false;
+					processBtn.classList.add('active');
+					// Update status
+					statusDot.style.background = '#2ecc71';
+					statusDot.style.boxShadow = '0 0 10px #2ecc71';
+					statusText.innerText = 'File loaded';
+
+					// Add terminal message
+					const term = document.getElementById('terminal_output');
+					term.innerHTML += `<div class="terminal-message"><span class="terminal-timestamp">[${new Date().toLocaleTimeString()}]</span> 📁 Uploaded: ${fileName}</div>`;
+					term.scrollTop = term.scrollHeight;
+				}
+			});
+
+			// Toggle click (demo only)
+			toggle.addEventListener('click', function () {
+				if (!toggle.classList.contains('disabled')) {
+					toggle.classList.toggle('active');
+				}
+			});
+
+			// Opacity slider display
+			const opacityValue = document.getElementById('opacityValue');
+			opacitySlider.addEventListener('input', function () {
+				opacityValue.innerText = opacitySlider.value + '%';
+			});
+
+			// Simulate process button click (demo)
+			processBtn.addEventListener('click', function () {
+				if (!processBtn.disabled) {
+					const term = document.getElementById('terminal_output');
+					term.innerHTML += `<div class="terminal-message"><span class="terminal-timestamp">[${new Date().toLocaleTimeString()}]</span> ⚙️ Processing started...</div>`;
+					term.scrollTop = term.scrollHeight;
+					// Simulate processing and then update heatmap placeholder (optional)
+					setTimeout(() => {
+						term.innerHTML += `<div class="terminal-message"><span class="terminal-timestamp">[${new Date().toLocaleTimeString()}]</span> ✅ Analysis complete. Heatmap ready.</div>`;
+					}, 2000);
+				}
+			});
+
+			// toast demo for load buttons
+			const loadBtns = document.querySelectorAll('.load-btn');
+			const toast = document.getElementById('toast');
+			const toastText = document.getElementById('toast-text');
+			loadBtns.forEach(btn => {
+				btn.addEventListener('click', (e) => {
+					e.stopPropagation();
+					toastText.innerText = 'Demo: load site functionality (mock)';
+					toast.classList.add('show');
+					setTimeout(() => toast.classList.remove('show'), 2500);
+				});
+			});
+
+			// init MapTiler geocoding if map exists
+			if (window.map) {
+				const mtGeocoder = new maptilerGeocoding.Geocoding({input: 'search'});
+				map.addControl(mtGeocoder, 'topleft');
+				// move it into our custom container
+				const geocoderContainer = document.getElementById('geocoding-container');
+				const geocoderEl = document.querySelector('.maptiler-geocoder-control');
+				if (geocoderEl && geocoderContainer) {
+					geocoderContainer.appendChild(geocoderEl);
+				}
+			}
+		})();
+	</script>
+
+	<!-- ensure the original terminal and analysis containers can still be used by script.js -->
+</body>
+
+</html>
+
