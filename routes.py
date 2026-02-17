@@ -4,6 +4,7 @@ import time
 from datetime import datetime
 
 import matplotlib
+from bson.objectid import ObjectId  # ✅ Required for handling MongoDB IDs
 
 matplotlib.use('Agg')
 import random
@@ -332,5 +333,95 @@ def callRoutes(app, mongo):
         except Exception as e:
             print(f"❌ Upload Error: {e}")
             return jsonify({"status": "error", "message": str(e)}), 500
+
+        # === 💾 SAVED SITES API ===
+
+    @routes.route("/api/sites", methods=["GET"])
+    def get_sites():
+        """Fetch all saved sites for the drawer"""
+        try:
+            # Get sites, sorted by newest first
+            sites = mongo.db.Boundaries.find({"userId": 1}).sort("_id", -1)
+            
+            site_list = []
+            for site in sites:
+                site_list.append({
+                    "id": str(site["_id"]),
+                    "name": site.get("sitename", "Unnamed Site"),
+                    "date": site.get("date", "Unknown Date"),
+                    "coords": site["coords"]
+                })
+            return jsonify({"status": "success", "sites": site_list})
+        except Exception as e:
+            return jsonify({"status": "error", "message": str(e)})
+
+    @routes.route("/api/save_site", methods=["POST"])
+    def save_new_site():
+        """Save a new site boundary"""
+        try:
+            data = request.get_json()
+            coords = data.get("coords")
+            sitename = data.get("sitename")
+            
+            if not coords or not sitename:
+                return jsonify({"status": "error", "message": "Missing data"}), 400
+
+            dataToInsert = {
+                "userId": 1,
+                "sitename": sitename,
+                "coords": coords,
+                "date": datetime.now().strftime("%Y-%m-%d"), # ✅ Auto-add date
+                "timestamp": time.time()
+            }
+
+            mongo.db.Boundaries.insert_one(dataToInsert)
+            return jsonify({"status": "success", "message": "Site Saved"})
+        except Exception as e:
+            return jsonify({"status": "error", "message": str(e)})
+
+    @routes.route("/api/sites/<site_id>", methods=["DELETE"])
+    def delete_site(site_id):
+        """Delete a site"""
+        try:
+            mongo.db.Boundaries.delete_one({"_id": ObjectId(site_id)})
+            return jsonify({"status": "success", "message": "Deleted"})
+        except Exception as e:
+            return jsonify({"status": "error", "message": str(e)})
+
+# === 📂 GET SAVED SITES FOR SIDEBAR ===
+    @routes.route("/api/sites", methods=["GET"])
+    def get_sites():
+        """Fetch all saved sites for the drawer"""
+        try:
+            # Get sites, sorted by newest first (assuming _id stores timestamp roughly)
+            sites = mongo.db.Boundaries.find({"userId": 1}).sort("_id", -1)
+            
+            site_list = []
+            for site in sites:
+                # Handle cases where 'date' might not exist in old records
+                date_str = site.get("date", "Unknown Date")
+                
+                site_list.append({
+                    "id": str(site["_id"]),
+                    "name": site.get("sitename", "Unnamed Site"),
+                    "date": date_str,
+                    "coords": site["coords"]
+                })
+            
+            return jsonify({"status": "success", "sites": site_list})
+        except Exception as e:
+            print(f"Error fetching sites: {e}")
+            return jsonify({"status": "error", "message": str(e)})
+
+    # === 🗑️ DELETE SITE API ===
+    @routes.route("/api/sites/<site_id>", methods=["DELETE"])
+    def delete_site(site_id):
+        from bson.objectid import \
+            ObjectId  # Import here to avoid top-level dependency issues
+        try:
+            mongo.db.Boundaries.delete_one({"_id": ObjectId(site_id)})
+            return jsonify({"status": "success", "message": "Deleted"})
+        except Exception as e:
+            return jsonify({"status": "error", "message": str(e)})
 
     return routes 

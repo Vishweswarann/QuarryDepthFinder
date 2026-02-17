@@ -449,46 +449,111 @@ function showAnalysisResults(content) {
 	resultsDiv.innerHTML = content;
 }
 
+
+/* ==========================================
+   UPGRADED SAVE FUNCTION (Replace existing saveTheBoundary)
+   ========================================== */
+
 function saveTheBoundary(coords) {
-	console.log(coords);
-	var sitename = document.getElementById("sitename").value;
-	fetch("/save", {
+	// 1. Get the name from the popup input
+	const siteNameInput = document.getElementById('siteNameInput');
+	const sitename = siteNameInput.value;
+
+	if (!sitename) {
+		alert("⚠️ Please enter a site name first.");
+		return;
+	}
+
+	// 2. Prepare the data (MongoDB format)
+	// The coords passed from the popup are usually [lat, lng], but let's ensure structure
+	// If coords are just raw arrays, map them to objects if needed, 
+	// but your backend likely handles the list of lists.
+	// Let's check if we need to format it for the new API:
+	// The new API expects: { sitename: "...", coords: [...] }
+
+	// UI Feedback
+	const saveBtn = document.querySelector('.leaflet-popup-content button');
+	if (saveBtn) saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+	fetch('/api/save_site', {  // <--- CHANGED to new API
 		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ "coords": coords, "sitename": sitename })
-	}).then(response => response.json())
-		.then(data => console.log(data))
-		.catch(err => console.log(err))
+		headers: {
+			'Content-Type': 'application/json'
+		},
+		body: JSON.stringify({
+			"sitename": sitename,
+			"coords": coords
+		})
+	})
+		.then(response => response.json())
+		.then(data => {
+			if (data.status === 'success') {
+				// 3. Success!
+				if (saveBtn) {
+					saveBtn.innerHTML = '<i class="fas fa-check"></i> Saved!';
+					saveBtn.style.background = '#2ecc71';
+				}
+
+				// 4. Refresh the Sidebar List immediately
+				if (typeof fetchSavedSites === "function") {
+					fetchSavedSites();
+				}
+
+				// Close popup after 1 second
+				setTimeout(() => {
+					map.closePopup();
+				}, 1000);
+
+				// Optional: Open the drawer to show the new site
+				const drawer = document.getElementById('drawer');
+				if (drawer && drawer.classList.contains('collapsed')) {
+					drawer.classList.remove('collapsed');
+				}
+
+			} else {
+				alert('❌ Error: ' + data.message);
+				if (saveBtn) saveBtn.innerHTML = 'Save Quarry';
+			}
+		})
+		.catch(error => {
+			console.error('Error:', error);
+			alert('❌ Network Error');
+			if (saveBtn) saveBtn.innerHTML = 'Save Quarry';
+		});
+	// Inside saveTheBoundary success block:
+	if (window.fetchSavedSites) {
+		window.fetchSavedSites(); // <--- This updates the sidebar instantly
+	}
 }
 
-// ✅ IMPROVED: Better polygon creation handling with new colors
 map.on(L.Draw.Event.CREATED, function (e) {
 	var type = e.layerType;
 	var layer = e.layer;
 
 	if (type === "polygon") {
-
-
-		// Clear previous layers
+		// 1. Clear previous layers & Add new one
 		drawnItems.clearLayers();
 		drawnItems.addLayer(layer);
 
-		coords = layer.getLatLngs()[0];  // Outer ring coords of polygon
+		coords = layer.getLatLngs()[0];  // Save coordinates
 
 		console.log('Polygon created with coordinates:', coords);
 		addTerminalMessage(`Polygon created with ${coords.length} points`);
 
-
-		// ✅ IMPROVED: Better popup with site saving
+		// 2. Attach the Click Event (Popup logic)
+		// This prepares the popup but DOES NOT open it yet.
 		layer.on('click', function (event) {
 			const popupCoords = layer.getLatLngs()[0].map(pt => [pt.lat.toFixed(4), pt.lng.toFixed(4)]);
+
 			const popup = L.popup()
 				.setLatLng(event.latlng)
 				.setContent(`
 				<div style="min-width: 250px;">
 					<h4 style="margin: 0 0 10px 0;">💾 Save This Quarry</h4>
 					<p><strong>Coordinates:</strong> ${popupCoords.length} points</p>
-					<input type='text' id='sitename' placeholder='Enter quarry name' style="width: 100%; padding: 8px; margin: 5px 0; border: 1px solid #ddd; border-radius: 4px;">
+					
+					<input type='text' id='siteNameInput' placeholder='Enter quarry name' style="width: 100%; padding: 8px; margin: 5px 0; border: 1px solid #ddd; border-radius: 4px;">
+					
 					<button onclick='saveTheBoundary(${JSON.stringify(popupCoords)})' style="width: 100%; background: #27ae60; color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer; margin-top: 5px;">
 						💾 Save Quarry
 					</button>
@@ -497,9 +562,10 @@ map.on(L.Draw.Event.CREATED, function (e) {
 				.openOn(map);
 		});
 
-	}
+		// ❌ REMOVED: layer.fire('click', ...) 
+		// Now the popup will NOT open automatically.
 
-	else if (type === "marker") {
+	} else if (type === "marker") {
 		if (!coords) {
 			alert("⚠️ Please draw the Quarry Boundary (Polygon) first!");
 			return;
@@ -511,7 +577,6 @@ map.on(L.Draw.Event.CREATED, function (e) {
 		var refLng = layer.getLatLng().lng;
 
 		console.log("📍 Reference point set at:", refLat, refLng);
-
 
 		// Show loading immediately
 		showAnalysisResults(`
@@ -528,8 +593,6 @@ map.on(L.Draw.Event.CREATED, function (e) {
 	`);
 
 		bbox = getBoundingBox(coords);
-		console.log('Bounding Box:', bbox);
-		addTerminalMessage(`Bounding box: ${bbox.minLat.toFixed(4)}°N to ${bbox.maxLat.toFixed(4)}°N, ${bbox.minLng.toFixed(4)}°E to ${bbox.maxLng.toFixed(4)}°E`);
 
 		const dataToSend = {
 			dem: "COP",
@@ -540,10 +603,8 @@ map.on(L.Draw.Event.CREATED, function (e) {
 
 		// Start the analysis process
 		getHeatMap(dataToSend);
-
 	}
 });
-
 // ✅ ADDED: Handle draw events better
 map.on('draw:drawstart', function (e) {
 	console.log('Drawing started');
@@ -889,4 +950,109 @@ document.addEventListener('DOMContentLoaded', function () {
 	function formatNumber(num) {
 		return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 	}
+});
+
+
+/* ==========================================
+   SAVED SITES MANAGER
+   Paste this at the VERY BOTTOM of script.js
+   ========================================== */
+
+document.addEventListener('DOMContentLoaded', function () {
+
+	// 1. Load sites immediately when page opens
+	fetchSavedSites();
+
+	// 2. Function to Fetch & Render
+	async function fetchSavedSites() {
+		try {
+			const response = await fetch('/api/sites');
+			const data = await response.json();
+
+			const listContainer = document.querySelector('.saved-sites-list');
+			if (!listContainer) return;
+
+			listContainer.innerHTML = ''; // Clear current list
+
+			if (!data.sites || data.sites.length === 0) {
+				listContainer.innerHTML = '<div style="padding:20px; text-align:center; color:#95a5a6; font-size: 0.9rem;">No saved sites yet.<br>Draw a polygon and click "Save".</div>';
+				return;
+			}
+
+			// Loop through sites and create cards
+			data.sites.forEach(site => {
+				const item = document.createElement('div');
+				item.className = 'site-item';
+				// Store coords in dataset for easy retrieval
+				item.dataset.coords = JSON.stringify(site.coords);
+				item.dataset.id = site.id;
+
+				item.innerHTML = `
+                    <div class="site-info" onclick="loadSiteOnMap('${site.id}')">
+                        <h4 style="margin:0; font-size:1rem; color:#2c3e50;">${site.name}</h4>
+                        <p style="margin:2px 0 0 0; font-size:0.8rem; color:#95a5a6;"><i class="far fa-calendar"></i> ${site.date}</p>
+                    </div>
+                    <div style="display:flex; gap:5px;">
+                        <button class="load-btn" onclick="loadSiteOnMap('${site.id}')">Load</button>
+                        <button class="load-btn" style="color:#e74c3c; border-color:#fadbd8;" onclick="deleteSite('${site.id}')"><i class="fas fa-trash"></i></button>
+                    </div>
+                `;
+				listContainer.appendChild(item);
+			});
+
+		} catch (error) {
+			console.error("Error loading sites:", error);
+		}
+	}
+
+	// 3. Make fetch available globally so other functions (like Save) can refresh the list
+	window.fetchSavedSites = fetchSavedSites;
+
+	// 4. Function to Load a Site onto the Map
+	window.loadSiteOnMap = function (id) {
+		// Find the DOM element to get the coords
+		const item = document.querySelector(`.site-item[data-id='${id}']`);
+		if (!item) return;
+
+		const coords = JSON.parse(item.dataset.coords);
+
+		// Clear existing drawn items
+		if (window.drawnItems) {
+			window.drawnItems.clearLayers();
+		}
+
+		// Create the polygon
+		const polygon = L.polygon(coords, {
+			color: '#16a085',
+			fillColor: '#16a085',
+			fillOpacity: 0.3,
+			weight: 3
+		}).addTo(map);
+
+		// Add to feature group so we can edit it or save it again
+		if (window.drawnItems) {
+			window.drawnItems.addLayer(polygon);
+		}
+
+		// Zoom to the site
+		map.fitBounds(polygon.getBounds());
+
+		// On mobile, close the drawer
+		const drawer = document.getElementById('drawer');
+		if (drawer && window.innerWidth < 768) {
+			drawer.classList.add('collapsed');
+		}
+	};
+
+	// 5. Function to Delete a Site
+	window.deleteSite = async function (id) {
+		if (!confirm("Are you sure you want to delete this site?")) return;
+
+		try {
+			await fetch(`/api/sites/${id}`, { method: 'DELETE' });
+			fetchSavedSites(); // Refresh list
+		} catch (e) {
+			alert("Error deleting site");
+		}
+	};
 });
