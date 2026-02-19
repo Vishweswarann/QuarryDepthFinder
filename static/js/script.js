@@ -348,10 +348,8 @@ function displayDepthResults(stats, visualizationPath) {
             </div>
 
             <div style="background: #e8f4fd; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #2ecc71;">
-                <h4 style="margin-top: 0; color: #2c3e50;">📊 Volume & Area Analysis</h4>
+                <h4 style="margin-top: 0; color: #2c3e50;">📊 Area Analysis</h4>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 14px;">
-                    <div><strong>📐 Total Area:</strong> ${safeToInteger(safeStats.total_area_m2)} m²</div>
-					<div><strong>⛰️ Excavation Volume:</strong> ${safeToInteger(safeStats.volume_m3)} m³</div>
 					<div><strong>🎯 Surface (Gradient Descent):</strong> ${safeToFixed(safeStats.surface_gradient_descent)}m</div>
 					<div><strong>🏔️ Surface (Original):</strong> ${safeToFixed(safeStats.surface_original_method)}m</div>
                 </div>
@@ -360,6 +358,17 @@ function displayDepthResults(stats, visualizationPath) {
     `;
 
 	showAnalysisResults(html);
+
+	// ✅ CONNECT THE EXISTING DOWNLOAD BUTTON
+	const downloadBtn = document.querySelector('.download-btn');
+	if (downloadBtn) {
+		// Update the button's click event to use the current stats and image
+		downloadBtn.onclick = function () {
+			generateAndDownloadReport(safeStats, visualizationPath);
+		};
+	}
+
+
 
 	// Load depth visualization
 	if (visualizationPath) {
@@ -1056,3 +1065,77 @@ document.addEventListener('DOMContentLoaded', function () {
 		}
 	};
 });
+/* ==========================================
+   REPORT GENERATION FUNCTION (PDF)
+   ========================================== */
+function generateAndDownloadReport(stats, imageUrl) {
+	const btn = document.querySelector('.download-btn');
+
+	if (!stats || !imageUrl) {
+		alert("Please wait for the analysis to complete before downloading.");
+		return;
+	}
+
+	// --- 🚨 NEW: Ask the user for the quarry name ---
+	let sitename = prompt("Enter the name of the quarry for the report:", "My Quarry");
+
+	// If the user clicks "Cancel" on the prompt box, stop the download
+	if (sitename === null) {
+		return;
+	}
+
+	// If they leave it completely blank and click OK, use a default name
+	if (sitename.trim() === "") {
+		sitename = "Unnamed Quarry";
+	}
+	// ------------------------------------------------
+
+	const originalText = btn.innerHTML;
+	btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating PDF...';
+	btn.disabled = true;
+
+	fetch('/api/download_report', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({
+			sitename: sitename,  // Send the typed name to the PDF generator
+			stats: stats,
+			image_url: imageUrl
+		})
+	})
+		.then(response => response.json())
+		.then(data => {
+			if (data.status === 'success') {
+				// Trigger the file download in the browser
+				const link = document.createElement('a');
+				link.href = data.report_url;
+				link.download = data.report_url.split('/').pop(); // Gets the filename
+				document.body.appendChild(link);
+				link.click();
+				document.body.removeChild(link);
+
+				// Show success animation on the button
+				btn.innerHTML = '<i class="fas fa-check"></i> Downloaded';
+				btn.style.backgroundColor = '#27ae60';
+				btn.style.color = 'white';
+
+				// Reset button after 3 seconds
+				setTimeout(() => {
+					btn.innerHTML = originalText;
+					btn.style.backgroundColor = ''; // Reset to CSS default
+					btn.style.color = '';
+					btn.disabled = false;
+				}, 3000);
+			} else {
+				alert("❌ Error: " + data.message);
+				btn.innerHTML = originalText;
+				btn.disabled = false;
+			}
+		})
+		.catch(err => {
+			console.error(err);
+			alert("❌ Network Error: Could not connect to server.");
+			btn.innerHTML = originalText;
+			btn.disabled = false;
+		});
+}

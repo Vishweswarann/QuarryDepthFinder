@@ -1,10 +1,12 @@
 # [file name]: three_visualization.py
 # [file content begin]
-import numpy as np
-import rasterio
 import json
 import os
 from datetime import datetime
+
+import numpy as np
+import rasterio
+
 
 def generate_3d_terrain_data(dem_file="cropped.tif"):
     """

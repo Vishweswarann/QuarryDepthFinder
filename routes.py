@@ -336,24 +336,6 @@ def callRoutes(app, mongo):
 
         # === 💾 SAVED SITES API ===
 
-    @routes.route("/api/sites", methods=["GET"])
-    def get_sites():
-        """Fetch all saved sites for the drawer"""
-        try:
-            # Get sites, sorted by newest first
-            sites = mongo.db.Boundaries.find({"userId": 1}).sort("_id", -1)
-            
-            site_list = []
-            for site in sites:
-                site_list.append({
-                    "id": str(site["_id"]),
-                    "name": site.get("sitename", "Unnamed Site"),
-                    "date": site.get("date", "Unknown Date"),
-                    "coords": site["coords"]
-                })
-            return jsonify({"status": "success", "sites": site_list})
-        except Exception as e:
-            return jsonify({"status": "error", "message": str(e)})
 
     @routes.route("/api/save_site", methods=["POST"])
     def save_new_site():
@@ -379,14 +361,6 @@ def callRoutes(app, mongo):
         except Exception as e:
             return jsonify({"status": "error", "message": str(e)})
 
-    @routes.route("/api/sites/<site_id>", methods=["DELETE"])
-    def delete_site(site_id):
-        """Delete a site"""
-        try:
-            mongo.db.Boundaries.delete_one({"_id": ObjectId(site_id)})
-            return jsonify({"status": "success", "message": "Deleted"})
-        except Exception as e:
-            return jsonify({"status": "error", "message": str(e)})
 
 # === 📂 GET SAVED SITES FOR SIDEBAR ===
     @routes.route("/api/sites", methods=["GET"])
@@ -422,6 +396,46 @@ def callRoutes(app, mongo):
             mongo.db.Boundaries.delete_one({"_id": ObjectId(site_id)})
             return jsonify({"status": "success", "message": "Deleted"})
         except Exception as e:
+            return jsonify({"status": "error", "message": str(e)})
+
+
+# === 📄 DOWNLOAD REPORT API ===
+    @routes.route("/api/download_report", methods=["POST"])
+    def download_report():
+        try:
+            import time
+
+            from report_generator import generate_pdf_report
+
+            data = request.get_json()
+            
+            # 1. Get image path from URL (convert /static/Figure/... to actual path)
+            image_url = data.get('image_url', '')
+            if 'static/' in image_url:
+                # Remove leading slash if present and split
+                clean_path = image_url.lstrip('/')
+                image_path = clean_path  # e.g., "static/Figure/heatmap_123.png"
+            else:
+                image_path = None
+
+            report_data = {
+                'sitename': data.get('sitename', 'Quarry Site'),
+                'stats': data.get('stats', {}),
+                'image_path': image_path
+            }
+
+            # 2. Generate PDF
+            filename = f"Report_{int(time.time())}.pdf"
+            pdf_path = generate_pdf_report(report_data, filename)
+
+            # 3. Return the URL to the PDF
+            return jsonify({
+                "status": "success", 
+                "report_url": url_for('static', filename=f'reports/{filename}')
+            })
+
+        except Exception as e:
+            print(f"Report Generation Error: {e}")
             return jsonify({"status": "error", "message": str(e)})
 
     return routes 

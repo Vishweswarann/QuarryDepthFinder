@@ -1,456 +1,509 @@
 <!DOCTYPE html>
 <html>
+
 <head>
-    <title>3D Quarry Visualization - Auto Data</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <style>
-        body { margin: 0; overflow: hidden; font-family: Arial; }
-        #info-panel {
-            position: absolute; top: 10px; left: 10px;
-            background: rgba(0,0,0,0.9); color: white; padding: 15px;
-            border-radius: 8px; z-index: 100; min-width: 280px;
-            border: 2px solid #4CAF50;
-        }
-        #controls {
-            position: absolute; bottom: 10px; left: 10px;
-            background: rgba(0,0,0,0.9); color: white; padding: 15px;
-            border-radius: 8px; z-index: 100; border: 2px solid #2196F3;
-        }
-        #loading {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            background: rgba(0,0,0,0.95); color: white; padding: 25px;
-            border-radius: 10px; z-index: 1000; text-align: center;
-            border: 2px solid #FF9800;
-        }
-        button { 
-            margin: 4px; padding: 8px 12px; background: #2196F3; 
-            color: white; border: none; border-radius: 4px; cursor: pointer; 
-            font-size: 12px;
-        }
-        button:hover { background: #1976D2; }
-        button:disabled { background: #666; cursor: not-allowed; }
-        .slider-container { margin: 8px 0; }
-        label { display: inline-block; width: 100px; font-size: 12px; }
-        .data-point { 
-            background: rgba(255,255,255,0.1); padding: 4px 8px; 
-            margin: 3px 0; border-radius: 3px; font-size: 12px;
-        }
-        .status-good { color: #4CAF50; }
-        .status-warning { color: #FF9800; }
-        h3 { margin: 0 0 10px 0; color: #4CAF50; }
-    </style>
+	<title>3D Quarry Visualization - Auto Data</title>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+	<style>
+		/* 1. Remove overflow: hidden to allow scrolling */
+		body {
+			margin: 0;
+			overflow-x: hidden;
+			font-family: Arial;
+			background-color: #1a1a2e;
+		}
+
+		/* 2. Create a dedicated container for the 3D map */
+		#canvas-container {
+			width: 100vw;
+			height: 100vh;
+			/* Takes up exactly one full screen height */
+			position: relative;
+			/* Keeps UI panels trapped inside this container */
+			display: block;
+		}
+
+		#info-panel {
+			position: absolute;
+			top: 10px;
+			left: 10px;
+			background: rgba(0, 0, 0, 0.9);
+			color: white;
+			padding: 15px;
+			border-radius: 8px;
+			z-index: 100;
+			min-width: 280px;
+			border: 2px solid #4CAF50;
+		}
+
+		#controls {
+			position: absolute;
+			bottom: 10px;
+			left: 10px;
+			background: rgba(0, 0, 0, 0.9);
+			color: white;
+			padding: 15px;
+			border-radius: 8px;
+			z-index: 100;
+			border: 2px solid #2196F3;
+		}
+
+		#loading {
+			position: absolute;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+			background: rgba(0, 0, 0, 0.95);
+			color: white;
+			padding: 25px;
+			border-radius: 10px;
+			z-index: 1000;
+			text-align: center;
+			border: 2px solid #FF9800;
+		}
+
+		button {
+			margin: 4px;
+			padding: 8px 12px;
+			background: #2196F3;
+			color: white;
+			border: none;
+			border-radius: 4px;
+			cursor: pointer;
+			font-size: 12px;
+		}
+
+		button:hover {
+			background: #1976D2;
+		}
+
+		button:disabled {
+			background: #666;
+			cursor: not-allowed;
+		}
+
+		.slider-container {
+			margin: 8px 0;
+		}
+
+		label {
+			display: inline-block;
+			width: 100px;
+			font-size: 12px;
+			color: white;
+		}
+
+		.data-point {
+			background: rgba(255, 255, 255, 0.1);
+			padding: 4px 8px;
+			margin: 3px 0;
+			border-radius: 3px;
+			font-size: 12px;
+		}
+
+		.status-good {
+			color: #4CAF50;
+		}
+
+		.status-warning {
+			color: #FF9800;
+		}
+
+		h3 {
+			margin: 0 0 10px 0;
+			color: #4CAF50;
+		}
+
+		/* 3. Add styles for the scrollable content below the map */
+		#detailed-content {
+			padding: 50px;
+			color: white;
+			min-height: 50vh;
+			background: linear-gradient(135deg, #1a1a2e, #16213e);
+			font-family: Arial, sans-serif;
+		}
+
+		.content-card {
+			background: rgba(255, 255, 255, 0.05);
+			padding: 20px;
+			border-radius: 10px;
+			border: 1px solid #34495e;
+			max-width: 800px;
+			margin: 0 auto;
+		}
+	</style>
 </head>
+
 <body>
-    <div id="loading">
-        <h3>🚀 Generating 3D Quarry Data...</h3>
-        <p>Creating realistic 195×85 terrain automatically</p>
-        <div id="progress">Initializing...</div>
-    </div>
 
-    <div id="info-panel" style="display: none;">
-        <h3>🏔️ 3D Quarry Visualization</h3>
-        <div class="data-point">
-            <strong>Terrain Size:</strong> <span id="terrain-size">195 × 85</span>
-        </div>
-        <div class="data-point">
-            <strong>Elevation Range:</strong> <span id="elevation-range">-74.0m - 101.0m</span>
-        </div>
-        <div class="data-point">
-            <strong>Data Points:</strong> <span id="data-points-count">16,575</span>
-        </div>
-        <div class="data-point">
-            <strong>View:</strong> <span id="current-view">Elevation</span>
-        </div>
-        <div class="data-point status-good">
-            <strong>Status:</strong> <span id="data-status">Auto-Generated Realistic Data</span>
-        </div>
-    </div>
-    
-    <div id="controls" style="display: none;">
-        <div>
-            <button onclick="toggleView()">🔄 Toggle View</button>
-            <button onclick="resetCamera()">📷 Reset Camera</button>
-            <button onclick="toggleRotation()" id="rotate-btn">⏸️ Pause Rotation</button>
-            <button onclick="generateNewTerrain()" id="generate-btn">🎲 New Terrain</button>
-        </div>
-        
-        <div class="slider-container">
-            <label>Vertical Scale:</label>
-            <input type="range" id="vertical-scale" min="1" max="200" value="50" oninput="updateScale(this.value)">
-            <span id="scale-value">50x</span>
-        </div>
-        
-        <div class="slider-container">
-            <label>Rotation Speed:</label>
-            <input type="range" id="rotation-speed" min="0" max="50" value="20" oninput="updateSpeed(this.value)">
-            <span id="speed-value">0.2</span>
-        </div>
+	<div id="canvas-container">
+		<div id="loading">
+			<h3>🚀 Generating 3D Quarry Data...</h3>
+			<p>Creating realistic 195×85 terrain automatically</p>
+			<div id="progress">Initializing...</div>
+		</div>
 
-        <div class="slider-container">
-            <label>Terrain Detail:</label>
-            <input type="range" id="terrain-detail" min="10" max="100" value="50" oninput="updateDetail(this.value)">
-            <span id="detail-value">50%</span>
-        </div>
-    </div>
+		<div id="info-panel" style="display: none;">
+			<h3>🏔️ 3D Quarry Visualization</h3>
+			<div class="data-point">
+				<strong>Terrain Size:</strong> <span id="terrain-size">195 × 85</span>
+			</div>
+			<div class="data-point">
+				<strong>Elevation Range:</strong> <span id="elevation-range">-74.0m - 101.0m</span>
+			</div>
+			<div class="data-point">
+				<strong>Data Points:</strong> <span id="data-points-count">16,575</span>
+			</div>
+			<div class="data-point">
+				<strong>View:</strong> <span id="current-view">Elevation</span>
+			</div>
+			<div class="data-point status-good">
+				<strong>Status:</strong> <span id="data-status">Auto-Generated Realistic Data</span>
+			</div>
+		</div>
 
-    <script>
-        // Three.js variables
-        let scene, camera, renderer, terrain;
-        let currentView = 'elevation';
-        let verticalScale = 50;
-        let rotationSpeed = 0.2;
-        let terrainDetail = 50;
-        let isRotating = true;
-        
-        // Quarry data
-        let quarryData = null;
-        const TERRAIN_WIDTH = 195;
-        const TERRAIN_HEIGHT = 85;
+		<div id="controls" style="display: none;">
+			<div>
+				<button onclick="toggleView()">🔄 Toggle View</button>
+				<button onclick="resetCamera()">📷 Reset Camera</button>
+				<button onclick="toggleRotation()" id="rotate-btn">⏸️ Pause Rotation</button>
+				<button onclick="generateNewTerrain()" id="generate-btn">🎲 New Terrain</button>
+			</div>
 
-        // Initialize application
-        async function init() {
-            try {
-                updateProgress("Loading 3D engine...");
-                
-                // Setup 3D scene first
-                setup3DScene();
-                
-                updateProgress("Generating quarry terrain data...");
-                
-                // Generate terrain data
-                await generateTerrainData();
-                
-                updateProgress("Creating 3D model...");
-                
-                // Create terrain mesh
-                createTerrainMesh();
-                
-                // Hide loading, show UI
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('info-panel').style.display = 'block';
-                document.getElementById('controls').style.display = 'block';
-                
-                // Start animation
-                animate();
-                
-            } catch (error) {
-                document.getElementById('loading').innerHTML = 
-                    '<h3>❌ Error</h3><p style="color: #ff6b6b;">' + error.message + '</p>' +
-                    '<button onclick="init()">🔄 Retry</button>';
-                console.error('Initialization error:', error);
-            }
-        }
+			<div class="slider-container">
+				<label>Vertical Scale:</label>
+				<input type="range" id="vertical-scale" min="1" max="200" value="50" oninput="updateScale(this.value)">
+				<span id="scale-value" style="color:white;">50x</span>
+			</div>
 
-        function updateProgress(message) {
-            const progress = document.getElementById('progress');
-            if (progress) {
-                progress.innerHTML = message;
-            }
-        }
+			<div class="slider-container">
+				<label>Rotation Speed:</label>
+				<input type="range" id="rotation-speed" min="0" max="50" value="20" oninput="updateSpeed(this.value)">
+				<span id="speed-value" style="color:white;">0.2</span>
+			</div>
 
-        function setup3DScene() {
-            // Scene setup
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x1a1a2e); // Dark blue background
-            
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.shadowMap.enabled = true;
-            document.body.appendChild(renderer.domElement);
+			<div class="slider-container">
+				<label>Terrain Detail:</label>
+				<input type="range" id="terrain-detail" min="10" max="100" value="50"
+					oninput="updateDetail(this.value)">
+				<span id="detail-value" style="color:white;">50%</span>
+			</div>
+		</div>
+	</div>
 
-            // Add enhanced lighting
-            const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
-            scene.add(ambientLight);
-            
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-            directionalLight.position.set(100, 200, 100);
-            directionalLight.castShadow = true;
-            scene.add(directionalLight);
+	<div id="detailed-content">
+		<div class="content-card">
+			<h2 style="color: #4CAF50;">📊 Advanced Quarry Analytics</h2>
+			<p>The 3D interactive map is contained above. This is the scrollable section where you can display detailed
+				analysis reports, volume calculations, and safety alerts.</p>
+			<p style="color: #95a5a6; font-size: 14px;">(You can replace this section with your stats cards later!)</p>
+		</div>
+	</div>
 
-            // Add hemisphere light for more natural lighting
-            const hemisphereLight = new THREE.HemisphereLight(0x443333, 0x111122, 0.4);
-            scene.add(hemisphereLight);
-        }
+	<script>
+		// Three.js variables
+		let scene, camera, renderer, terrain;
+		let currentView = 'elevation';
+		let verticalScale = 50;
+		let rotationSpeed = 0.2;
+		let terrainDetail = 50;
+		let isRotating = true;
 
-        async function generateTerrainData() {
-            try {
-                updateProgress("Fetching terrain data from server...");
-                const response = await fetch('/api/quarry/terrain-data');
-                const result = await response.json();
-                
-                if (result.success) {
-                    quarryData = result.data;
-                    console.log('Generated quarry data:', quarryData);
-                    
-                    // Update UI with data info
-                    document.getElementById('terrain-size').textContent = 
-                        quarryData.width + ' × ' + quarryData.height;
-                    document.getElementById('elevation-range').textContent = 
-                        quarryData.elevation_range.min.toFixed(1) + 'm - ' + 
-                        quarryData.elevation_range.max.toFixed(1) + 'm';
-                    document.getElementById('data-points-count').textContent = 
-                        quarryData.data_points.toLocaleString();
-                        
-                } else {
-                    throw new Error(result.error || 'Failed to generate terrain data');
-                }
-            } catch (error) {
-                console.error('Error generating terrain data:', error);
-                throw new Error('Cannot generate quarry data: ' + error.message);
-            }
-        }
+		// Quarry data
+		let quarryData = null;
+		const TERRAIN_WIDTH = 195;
+		const TERRAIN_HEIGHT = 85;
 
-        function createTerrainMesh() {
-            // Remove existing terrain
-            if (terrain) {
-                scene.remove(terrain);
-            }
+		// Initialize application
+		async function init() {
+			try {
+				updateProgress("Loading 3D engine...");
 
-            // Calculate resolution based on detail setting
-            const resolution = Math.max(10, Math.floor(terrainDetail / 100 * 50));
-            const segmentsX = resolution;
-            const segmentsY = Math.floor(resolution * (TERRAIN_HEIGHT / TERRAIN_WIDTH));
+				// Setup 3D scene first
+				setup3DScene();
 
-            const geometry = new THREE.PlaneGeometry(
-                TERRAIN_WIDTH, 
-                TERRAIN_HEIGHT, 
-                segmentsX, 
-                segmentsY
-            );
+				updateProgress("Generating quarry terrain data...");
 
-            const positions = geometry.attributes.position.array;
-            const depthData = quarryData.depth_data;
-            
-            // Apply generated depth data to terrain vertices
-            for (let i = 0; i < positions.length; i += 3) {
-                const vertexIndex = i / 3;
-                const segX = vertexIndex % (segmentsX + 1);
-                const segY = Math.floor(vertexIndex / (segmentsX + 1));
-                
-                // Map to actual data coordinates
-                const dataX = Math.floor((segX / segmentsX) * (TERRAIN_WIDTH - 1));
-                const dataY = Math.floor((segY / segmentsY) * (TERRAIN_HEIGHT - 1));
-                
-                // Get depth from generated data
-                let depth = 0;
-                if (depthData[dataY] && depthData[dataY][dataX] !== undefined) {
-                    depth = depthData[dataY][dataX];
-                } else {
-                    // Fallback
-                    depth = -30;
-                }
-                
-                // Apply vertical scaling
-                positions[i + 2] = depth * (verticalScale / 50);
-            }
+				// Generate terrain data
+				await generateTerrainData();
 
-            geometry.attributes.position.needsUpdate = true;
-            geometry.computeVertexNormals();
+				updateProgress("Creating 3D model...");
 
-            // Create colored material
-            const material = new THREE.MeshLambertMaterial({ 
-                vertexColors: true,
-                flatShading: true,
-                wireframe: currentView === 'topography'
-            });
+				// Create terrain mesh
+				createTerrainMesh();
 
-            // Add vertex colors based on depth
-            addDepthColors(geometry, quarryData.elevation_range);
+				// Hide loading, show UI
+				document.getElementById('loading').style.display = 'none';
+				document.getElementById('info-panel').style.display = 'block';
+				document.getElementById('controls').style.display = 'block';
 
-            terrain = new THREE.Mesh(geometry, material);
-            terrain.rotation.x = -Math.PI / 2;
-            terrain.receiveShadow = true;
-            scene.add(terrain);
+				// Start animation
+				animate();
 
-            // Position camera based on terrain size
-            camera.position.set(TERRAIN_WIDTH * 0.8, TERRAIN_HEIGHT * 2, TERRAIN_WIDTH * 0.8);
-            camera.lookAt(TERRAIN_WIDTH / 2, 0, TERRAIN_HEIGHT / 2);
+			} catch (error) {
+				document.getElementById('loading').innerHTML =
+					'<h3>❌ Error</h3><p style="color: #ff6b6b;">' + error.message + '</p>' +
+					'<button onclick="init()">🔄 Retry</button>';
+				console.error('Initialization error:', error);
+			}
+		}
 
-            // Add grid helper
-            const gridHelper = new THREE.GridHelper(Math.max(TERRAIN_WIDTH, TERRAIN_HEIGHT) * 1.2, 20, 0x444444, 0x222222);
-            scene.add(gridHelper);
-        }
+		function updateProgress(message) {
+			const progress = document.getElementById('progress');
+			if (progress) {
+				progress.innerHTML = message;
+			}
+		}
 
-        function addDepthColors(geometry, elevationRange) {
-            const colors = [];
-            const positions = geometry.attributes.position.array;
-            const minDepth = elevationRange.min;
-            const maxDepth = elevationRange.max;
+		function setup3DScene() {
+			// Scene setup
+			scene = new THREE.Scene();
+			scene.background = new THREE.Color(0x1a1a2e);
 
-            for (let i = 0; i < positions.length; i += 3) {
-                const depth = positions[i + 2] / (verticalScale / 50);
-                const color = getColorForDepth(depth, minDepth, maxDepth);
-                colors.push(color.r, color.g, color.b);
-            }
-            
-            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-        }
+			camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+			renderer = new THREE.WebGLRenderer({antialias: true});
 
-        function getColorForDepth(depth, minDepth, maxDepth) {
-            const normalized = (depth - minDepth) / (maxDepth - minDepth);
-            
-            if (depth < -50) {
-                // Very deep - dark blue
-                return new THREE.Color(0.1, 0.1, 0.6);
-            } else if (depth < -20) {
-                // Deep - medium blue
-                return new THREE.Color(0.2, 0.3, 0.8);
-            } else if (depth < 0) {
-                // Shallow water - light blue
-                return new THREE.Color(0.4, 0.6, 0.9);
-            } else if (depth < 20) {
-                // Low land - green
-                return new THREE.Color(0.3, 0.6, 0.2);
-            } else if (depth < 50) {
-                // Medium land - brown-green
-                return new THREE.Color(0.5, 0.5, 0.2);
-            } else {
-                // High land - brown
-                return new THREE.Color(0.6, 0.4, 0.2);
-            }
-        }
+			// 6. Connect the renderer to our container, not the window directly
+			const container = document.getElementById('canvas-container');
+			renderer.setSize(container.clientWidth, container.clientHeight);
+			renderer.shadowMap.enabled = true;
 
-        function animate() {
-            requestAnimationFrame(animate);
-            
-            if (isRotating && terrain) {
-                terrain.rotation.y += rotationSpeed * 0.01;
-            }
-            
-            renderer.render(scene, camera);
-        }
+			// 7. Append the canvas into our container instead of document.body
+			container.appendChild(renderer.domElement);
 
-        // Control functions
-        function toggleView() {
-            currentView = currentView === 'elevation' ? 'topography' : 'elevation';
-            document.getElementById('current-view').textContent = 
-                currentView.charAt(0).toUpperCase() + currentView.slice(1);
-            
-            if (terrain) {
-                terrain.material.wireframe = currentView === 'topography';
-                terrain.material.needsUpdate = true;
-            }
-        }
+			// Add enhanced lighting
+			const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+			scene.add(ambientLight);
 
-        function resetCamera() {
-            camera.position.set(TERRAIN_WIDTH * 0.8, TERRAIN_HEIGHT * 2, TERRAIN_WIDTH * 0.8);
-            camera.lookAt(TERRAIN_WIDTH / 2, 0, TERRAIN_HEIGHT / 2);
-        }
+			const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+			directionalLight.position.set(100, 200, 100);
+			directionalLight.castShadow = true;
+			scene.add(directionalLight);
 
-        function toggleRotation() {
-            isRotating = !isRotating;
-            document.getElementById('rotate-btn').textContent = 
-                isRotating ? '⏸️ Pause Rotation' : '▶️ Start Rotation';
-        }
+			// Add hemisphere light for more natural lighting
+			const hemisphereLight = new THREE.HemisphereLight(0x443333, 0x111122, 0.4);
+			scene.add(hemisphereLight);
+		}
 
-        async function generateNewTerrain() {
-            document.getElementById('generate-btn').disabled = true;
-            document.getElementById('generate-btn').textContent = '🔄 Generating...';
-            document.getElementById('data-status').textContent = 'Generating New Terrain...';
-            document.getElementById('data-status').className = 'data-point status-warning';
-            
-            try {
-                await generateTerrainData();
-                createTerrainMesh();
-                document.getElementById('data-status').textContent = 'New Auto-Generated Terrain';
-                document.getElementById('data-status').className = 'data-point status-good';
-            } catch (error) {
-                document.getElementById('data-status').textContent = 'Error: ' + error.message;
-                document.getElementById('data-status').className = 'data-point status-warning';
-            }
-            
-            document.getElementById('generate-btn').disabled = false;
-            document.getElementById('generate-btn').textContent = '🎲 New Terrain';
-        }
+		async function generateTerrainData() {
+			try {
+				updateProgress("Fetching terrain data from server...");
+				const response = await fetch('/api/quarry/terrain-data');
+				const result = await response.json();
 
-        function updateScale(value) {
-            verticalScale = parseInt(value);
-            document.getElementById('scale-value').textContent = value + 'x';
-            createTerrainMesh();
-        }
+				if (result.success) {
+					quarryData = result.data;
+					console.log('Generated quarry data:', quarryData);
 
-        function updateSpeed(value) {
-            rotationSpeed = parseFloat(value) / 100;
-            document.getElementById('speed-value').textContent = rotationSpeed.toFixed(2);
-        }
+					// Update UI with data info
+					document.getElementById('terrain-size').textContent =
+						quarryData.width + ' × ' + quarryData.height;
+					document.getElementById('elevation-range').textContent =
+						quarryData.elevation_range.min.toFixed(1) + 'm - ' +
+						quarryData.elevation_range.max.toFixed(1) + 'm';
+					document.getElementById('data-points-count').textContent =
+						quarryData.data_points.toLocaleString();
 
-        function updateDetail(value) {
-            terrainDetail = parseInt(value);
-            document.getElementById('detail-value').textContent = value + '%';
-            createTerrainMesh();
-        }
+				} else {
+					throw new Error(result.error || 'Failed to generate terrain data');
+				}
+			} catch (error) {
+				console.error('Error generating terrain data:', error);
+				throw new Error('Cannot generate quarry data: ' + error.message);
+			}
+		}
 
-        // Handle window resize
-        window.addEventListener('resize', function() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
+		function createTerrainMesh() {
+			// Remove existing terrain
+			if (terrain) {
+				scene.remove(terrain);
+			}
 
-        // Initialize when page loads
-        init();
-async function loadRealQuarryData() {
-    try {
-        console.log('Fetching terrain data from:', '/api/quarry/terrain-data');
-        
-        const response = await fetch('/api/quarry/terrain-data');
-        
-        // Check if response is OK
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        // Check content type
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-            const text = await response.text();
-            console.error('Received non-JSON response:', text.substring(0, 200));
-            throw new Error(`Expected JSON but got: ${contentType}`);
-        }
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            realTerrainData = result.data;
-            console.log('✅ Successfully loaded quarry data');
-            return realTerrainData;
-        } else {
-            throw new Error(result.error || 'Failed to load quarry data');
-        }
-    } catch (error) {
-        console.error('❌ Error loading quarry data:', error);
-        
-        // Create fallback data
-        console.log('🔄 Using fallback data...');
-        return generateFallbackData();
-    }
-}
+			// Calculate resolution based on detail setting
+			const resolution = Math.max(10, Math.floor(terrainDetail / 100 * 50));
+			const segmentsX = resolution;
+			const segmentsY = Math.floor(resolution * (TERRAIN_HEIGHT / TERRAIN_WIDTH));
 
-function generateFallbackData() {
-    // Simple fallback data
-    const width = 195;
-    const height = 85;
-    const depth_data = [];
-    
-    for (let y = 0; y < height; y++) {
-        const row = [];
-        for (let x = 0; x < width; x++) {
-            // Simple terrain pattern
-            const depth = Math.sin(x * 0.1) * Math.cos(y * 0.1) * 20 - 30;
-            row.push(depth);
-        }
-        depth_data.push(row);
-    }
-    
-    return {
-        width: width,
-        height: height,
-        elevation_range: { min: -74.0, max: 101.0 },
-        depth_data: depth_data,
-        timestamp: 'fallback_data'
-    };
-}
-    </script>
+			const geometry = new THREE.PlaneGeometry(
+				TERRAIN_WIDTH,
+				TERRAIN_HEIGHT,
+				segmentsX,
+				segmentsY
+			);
+
+			const positions = geometry.attributes.position.array;
+			const depthData = quarryData.depth_data;
+
+			// Apply generated depth data to terrain vertices
+			for (let i = 0; i < positions.length; i += 3) {
+				const vertexIndex = i / 3;
+				const segX = vertexIndex % (segmentsX + 1);
+				const segY = Math.floor(vertexIndex / (segmentsX + 1));
+
+				// Map to actual data coordinates
+				const dataX = Math.floor((segX / segmentsX) * (TERRAIN_WIDTH - 1));
+				const dataY = Math.floor((segY / segmentsY) * (TERRAIN_HEIGHT - 1));
+
+				// Get depth from generated data
+				let depth = 0;
+				if (depthData[dataY] && depthData[dataY][dataX] !== undefined) {
+					depth = depthData[dataY][dataX];
+				} else {
+					// Fallback
+					depth = -30;
+				}
+
+				// Apply vertical scaling
+				positions[i + 2] = depth * (verticalScale / 50);
+			}
+
+			geometry.attributes.position.needsUpdate = true;
+			geometry.computeVertexNormals();
+
+			// Create colored material
+			const material = new THREE.MeshLambertMaterial({
+				vertexColors: true,
+				flatShading: true,
+				wireframe: currentView === 'topography'
+			});
+
+			// Add vertex colors based on depth
+			addDepthColors(geometry, quarryData.elevation_range);
+
+			terrain = new THREE.Mesh(geometry, material);
+			terrain.rotation.x = -Math.PI / 2;
+			terrain.receiveShadow = true;
+			scene.add(terrain);
+
+			// Position camera based on terrain size
+			camera.position.set(TERRAIN_WIDTH * 0.8, TERRAIN_HEIGHT * 2, TERRAIN_WIDTH * 0.8);
+			camera.lookAt(TERRAIN_WIDTH / 2, 0, TERRAIN_HEIGHT / 2);
+
+			// Add grid helper
+			const gridHelper = new THREE.GridHelper(Math.max(TERRAIN_WIDTH, TERRAIN_HEIGHT) * 1.2, 20, 0x444444, 0x222222);
+			scene.add(gridHelper);
+		}
+
+		function addDepthColors(geometry, elevationRange) {
+			const colors = [];
+			const positions = geometry.attributes.position.array;
+			const minDepth = elevationRange.min;
+			const maxDepth = elevationRange.max;
+
+			for (let i = 0; i < positions.length; i += 3) {
+				const depth = positions[i + 2] / (verticalScale / 50);
+				const color = getColorForDepth(depth, minDepth, maxDepth);
+				colors.push(color.r, color.g, color.b);
+			}
+
+			geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+		}
+
+		function getColorForDepth(depth, minDepth, maxDepth) {
+			const normalized = (depth - minDepth) / (maxDepth - minDepth);
+
+			if (depth < -50) {
+				// Very deep - dark blue
+				return new THREE.Color(0.1, 0.1, 0.6);
+			} else if (depth < -20) {
+				// Deep - medium blue
+				return new THREE.Color(0.2, 0.3, 0.8);
+			} else if (depth < 0) {
+				// Shallow water - light blue
+				return new THREE.Color(0.4, 0.6, 0.9);
+			} else if (depth < 20) {
+				// Low land - green
+				return new THREE.Color(0.3, 0.6, 0.2);
+			} else if (depth < 50) {
+				// Medium land - brown-green
+				return new THREE.Color(0.5, 0.5, 0.2);
+			} else {
+				// High land - brown
+				return new THREE.Color(0.6, 0.4, 0.2);
+			}
+		}
+
+		function animate() {
+			requestAnimationFrame(animate);
+
+			if (isRotating && terrain) {
+				terrain.rotation.y += rotationSpeed * 0.01;
+			}
+
+			renderer.render(scene, camera);
+		}
+
+		// Control functions
+		function toggleView() {
+			currentView = currentView === 'elevation' ? 'topography' : 'elevation';
+			document.getElementById('current-view').textContent =
+				currentView.charAt(0).toUpperCase() + currentView.slice(1);
+
+			if (terrain) {
+				terrain.material.wireframe = currentView === 'topography';
+				terrain.material.needsUpdate = true;
+			}
+		}
+
+		function resetCamera() {
+			camera.position.set(TERRAIN_WIDTH * 0.8, TERRAIN_HEIGHT * 2, TERRAIN_WIDTH * 0.8);
+			camera.lookAt(TERRAIN_WIDTH / 2, 0, TERRAIN_HEIGHT / 2);
+		}
+
+		function toggleRotation() {
+			isRotating = !isRotating;
+			document.getElementById('rotate-btn').textContent =
+				isRotating ? '⏸️ Pause Rotation' : '▶️ Start Rotation';
+		}
+
+		async function generateNewTerrain() {
+			document.getElementById('generate-btn').disabled = true;
+			document.getElementById('generate-btn').textContent = '🔄 Generating...';
+			document.getElementById('data-status').textContent = 'Generating New Terrain...';
+			document.getElementById('data-status').className = 'data-point status-warning';
+
+			try {
+				await generateTerrainData();
+				createTerrainMesh();
+				document.getElementById('data-status').textContent = 'New Auto-Generated Terrain';
+				document.getElementById('data-status').className = 'data-point status-good';
+			} catch (error) {
+				document.getElementById('data-status').textContent = 'Error: ' + error.message;
+				document.getElementById('data-status').className = 'data-point status-warning';
+			}
+
+			document.getElementById('generate-btn').disabled = false;
+			document.getElementById('generate-btn').textContent = '🎲 New Terrain';
+		}
+
+		function updateScale(value) {
+			verticalScale = parseInt(value);
+			document.getElementById('scale-value').textContent = value + 'x';
+			createTerrainMesh();
+		}
+
+		function updateSpeed(value) {
+			rotationSpeed = parseFloat(value) / 100;
+			document.getElementById('speed-value').textContent = rotationSpeed.toFixed(2);
+		}
+
+		function updateDetail(value) {
+			terrainDetail = parseInt(value);
+			document.getElementById('detail-value').textContent = value + '%';
+			createTerrainMesh();
+		}
+
+		// Handle window resize dynamically inside the new container
+		window.addEventListener('resize', function () {
+			const container = document.getElementById('canvas-container');
+			camera.aspect = window.innerWidth / window.innerHeight;
+			camera.updateProjectionMatrix();
+			renderer.setSize(window.innerWidth, window.innerHeight);
+		});
+
+		// Initialize when page loads
+		init();
+	</script>
 </body>
+
 </html>
