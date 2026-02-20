@@ -5,24 +5,35 @@
 	<title>3D Quarry Visualization - Auto Data</title>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 	<style>
-		/* 1. Remove overflow: hidden to allow scrolling */
+		/* Force the page to be scrollable */
+		html,
 		body {
 			margin: 0;
+			padding: 0;
+			width: 100%;
+			height: 100%;
+			/* Use 100% height to allow scrolling */
 			overflow-x: hidden;
+			overflow-y: auto;
+			/* Ensure vertical scrollbar appears when needed */
 			font-family: Arial;
 			background-color: #1a1a2e;
 		}
 
-		/* 2. Create a dedicated container for the 3D map */
+		/* 3D canvas container – exactly full viewport height */
 		#canvas-container {
 			width: 100vw;
 			height: 100vh;
-			/* Takes up exactly one full screen height */
+			/* Full screen height */
 			position: relative;
-			/* Keeps UI panels trapped inside this container */
 			display: block;
+			background-color: #0f0f1a;
+			/* fallback */
+			flex-shrink: 0;
+			/* Prevent shrinking */
 		}
 
+		/* UI panels remain absolute inside the container */
 		#info-panel {
 			position: absolute;
 			top: 10px;
@@ -34,7 +45,15 @@
 			z-index: 100;
 			min-width: 280px;
 			border: 2px solid #4CAF50;
+			pointer-events: none;
+			/* Allow mouse to pass through to canvas if needed */
 		}
+
+		#info-panel button {
+			pointer-events: auto;
+		}
+
+		/* Buttons remain clickable */
 
 		#controls {
 			position: absolute;
@@ -46,6 +65,12 @@
 			border-radius: 8px;
 			z-index: 100;
 			border: 2px solid #2196F3;
+			pointer-events: none;
+		}
+
+		#controls button,
+		#controls input {
+			pointer-events: auto;
 		}
 
 		#loading {
@@ -114,13 +139,16 @@
 			color: #4CAF50;
 		}
 
-		/* 3. Add styles for the scrollable content below the map */
+		/* Scrollable content below the 3D view */
 		#detailed-content {
 			padding: 50px;
 			color: white;
-			min-height: 50vh;
+			min-height: 60vh;
+			/* Ensure it's tall enough to need scrolling */
 			background: linear-gradient(135deg, #1a1a2e, #16213e);
 			font-family: Arial, sans-serif;
+			border-top: 2px solid #4CAF50;
+			/* Visual separation */
 		}
 
 		.content-card {
@@ -197,6 +225,15 @@
 			<p>The 3D interactive map is contained above. This is the scrollable section where you can display detailed
 				analysis reports, volume calculations, and safety alerts.</p>
 			<p style="color: #95a5a6; font-size: 14px;">(You can replace this section with your stats cards later!)</p>
+			<!-- Add extra content to ensure scrolling -->
+			<div
+				style="height: 400px; background: rgba(255,255,255,0.02); margin-top: 20px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+				<p style="color: #4CAF50;">⬇️ More content – scroll down works! ⬇️</p>
+			</div>
+			<div
+				style="height: 400px; background: rgba(255,255,255,0.02); margin-top: 20px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+				<p style="color: #4CAF50;">⬇️ Even more content – you can keep scrolling ⬇️</p>
+			</div>
 		</div>
 	</div>
 
@@ -263,12 +300,12 @@
 			camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 			renderer = new THREE.WebGLRenderer({antialias: true});
 
-			// 6. Connect the renderer to our container, not the window directly
+			// Connect the renderer to our container
 			const container = document.getElementById('canvas-container');
 			renderer.setSize(container.clientWidth, container.clientHeight);
 			renderer.shadowMap.enabled = true;
 
-			// 7. Append the canvas into our container instead of document.body
+			// Append canvas into container
 			container.appendChild(renderer.domElement);
 
 			// Add enhanced lighting
@@ -493,12 +530,12 @@
 			createTerrainMesh();
 		}
 
-		// Handle window resize dynamically inside the new container
+		// Handle window resize dynamically inside the container
 		window.addEventListener('resize', function () {
 			const container = document.getElementById('canvas-container');
 			camera.aspect = window.innerWidth / window.innerHeight;
 			camera.updateProjectionMatrix();
-			renderer.setSize(window.innerWidth, window.innerHeight);
+			renderer.setSize(container.clientWidth, container.clientHeight);
 		});
 
 		// Initialize when page loads

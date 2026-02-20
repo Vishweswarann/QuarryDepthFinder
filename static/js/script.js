@@ -533,6 +533,10 @@ function saveTheBoundary(coords) {
 	if (window.fetchSavedSites) {
 		window.fetchSavedSites(); // <--- This updates the sidebar instantly
 	}
+
+	setTimeout(() => {
+		map.closePopup();
+	}, 1000);
 }
 
 map.on(L.Draw.Event.CREATED, function (e) {
@@ -907,17 +911,29 @@ document.addEventListener('DOMContentLoaded', function () {
 				if (document.getElementById('metric-elev'))
 					document.getElementById('metric-elev').innerText = data.depth_stats.min_elevation.toFixed(1) + ' m';
 
-				// E. Show Heatmap
+				// E. Show Heatmap & ENABLE ZOOM
 				const imgContainer = document.getElementById('img_container');
 				if (imgContainer) {
 					imgContainer.innerHTML = `
-                        <div class="zoom-container">
+                        <div class="zoom-container" style="cursor: zoom-in;">
                             <img src="${data.heatmap_url}" alt="Quarry Heatmap" style="width:100%; border-radius:12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-                            <span class="zoom-hint">Analysis of ${data.filename}</span>
+                            <span class="zoom-hint"><i class="fas fa-search-plus"></i> Click to Zoom</span>
                         </div>
                     `;
-				}
 
+					// ✅ Initialize Viewer.js on the new image so you can zoom
+					const newImage = imgContainer.querySelector('img');
+					new Viewer(newImage, {
+						toolbar: { zoomIn: 1, zoomOut: 1, oneToOne: 1, reset: 1 },
+						title: false,
+						navbar: false,
+						tooltip: true,
+						movable: true,
+						zoomable: true,
+						transition: true,
+						fullscreen: true,
+					});
+				}
 				processBtn.innerHTML = '<i class="fas fa-check"></i> Done';
 
 				// Reset button after 3 seconds so they can run another file
